@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import prettytable
 
 __all__ = ['Parameter', 'Parameterized', 'Model', 'Prior', 'Likelihood']
 
@@ -39,26 +40,19 @@ class Parameter(object):
     # NOTE: for now I will ignore any parameterization of priors.  All this
     # would really mean is that the parameter "vector" is itself composite. so
     # get/set methods would have to pull values from the prior objects and
-    # logprior would have to take into account the additional parameters when
+    # get_logprior would have to take into account the additional parameters when
     # returning the gradient. self.nparams would change too.
 
-    def logprior(self, grad=False):
+    def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments for this parameter
         vector. Also if requested return the gradient of this probability with
         respect to the parameter values.
         """
         if self.prior is None:
-            if grad:
-                return (0.0, np.zeros_like(self.value.ravel()))
-            else:
-                return 0.0
+            return (0.0, np.zeros_like(self.value.ravel())) if grad else 0.0
         else:
-            logp = self.prior.logp(self.value.ravel(), grad)
-            if grad:
-                return logp[0], logp[1]
-            else:
-                return logp
+            return self.prior.get_logp(self.value.ravel(), grad)
 
 
 class Parameterized(object):
@@ -75,6 +69,21 @@ class Parameterized(object):
                 ', '.join('{:s}={:s}'.format(name, obj)
                           for (name, obj) in self.__params) + ')')
 
+    def _walk_params(self):
+        for name, param in self.__params:
+            if isinstance(param, Parameterized):
+                for name_, param_ in param._walk_params():
+                    yield name + '.' + name_, param_
+            else:
+                yield name, param
+
+    def describe(self):
+        t = prettytable.PrettyTable(['name', 'value', 'prior'])
+        t.align['name'] = 'l'
+        for name, param in self._walk_params():
+            t.add_row([name, str(param.value), param.prior])
+        print(t)
+
     @property
     def nparams(self):
         """
@@ -90,9 +99,9 @@ class Parameterized(object):
             raise ValueError('only objects of type Parameter or Parameterized '
                              'can be registered')
         self.__params.append((name, param))
-        self.__setattr__('_' + name,
-                         param.value if isinstance(param, Parameter) else
-                         param)
+        self.__setattr__(name, param)
+        if isinstance(param, Parameter):
+            setattr(self, '_' + name, param.value)
 
     def get_params(self):
         """
@@ -115,21 +124,22 @@ class Parameterized(object):
         for _, obj in self.__params:
             obj.set_params(theta[offset:offset+obj.nparams])
 
-    def logprior(self, grad=False):
+    def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments to a parameterized
         object. Also if requested return the gradient of this probability with
         respect to the parameter values.
         """
         if grad is False:
-            return sum((obj.logprior() for (_, obj) in self.__params), 0.0)
+            return sum((obj.get_logprior() for (_, obj) in self.__params), 0.0)
         else:
-            logp, dlogp = 0.0, []
+            get_logp, dget_logp = 0.0, []
             for (_, obj) in self.__params:
-                elem = obj.logprior(True)
-                logp += elem[0]
-                dlogp.append(elem[1])
-            return logp, (np.hstack(dlogp) if len(dlogp) > 0 else np.array([]))
+                elem = obj.get_logprior(True)
+                get_logp += elem[0]
+                dget_logp.append(elem[1])
+            return get_logp, (np.hstack(dget_logp) if len(dget_logp) > 0 else
+                              np.array([]))
 
 
 class Model(Parameterized):
@@ -141,13 +151,18 @@ class Model(Parameterized):
 
     @property
     def ndata(self):
+        """The number of independent observations added to the model."""
         return 0 if self._X is None else self._X.shape[0]
 
     @property
     def data(self):
+        """A tuple containing the observed input- and output-data."""
         return (self._X, self._Y)
 
     def add_data(self, X, Y):
+        """
+        Add a new set of input/output data to the model.
+        """
         if self._X is None:
             self._X = X.copy()
             self._Y = X.copy()
@@ -155,23 +170,35 @@ class Model(Parameterized):
             self._X = np.r_[self._X, X]
             self._Y = np.r_[self._Y, Y]
 
-    def logposterior(self, grad=False):
+    def get_logposterior(self, grad=False):
+        """
+        Compute the log posterior of the model.
+        """
         if grad:
-            logp0, dlogp0 = self.logprior(True)
-            logp1, dlogp1 = self.logp(True)
+            logp0, dlogp0 = self.get_logprior(True)
+            logp1, dlogp1 = self.get_logp(True)
             return logp0+logp1, dlogp0+dlogp1
         else:
-            return self.logprior() + self.logp()
+            return self.get_logprior() + self.get_logp()
 
-    def logp(self, grad=False):
+    def get_logp(self, grad=False):
+        """
+        Compute the log likelihood of the model.
+        """
         raise NotImplementedError
 
 
-class Prior(Parameterized):
-    def logp(self, theta, grad=False):
+class Prior(object):
+    """
+    Base class for prior probability distributions.
+    """
+    def get_logp(self, theta, grad=False):
         raise NotImplementedError
 
 
 class Likelihood(Parameterized):
-    def logp(self, F, Y, grad=False):
+    """
+    Base class for likelihood models.
+    """
+    def get_logp(self, F, Y, grad=False):
         raise NotImplementedError
