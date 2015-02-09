@@ -52,7 +52,7 @@ class Parameter(object):
         if self.prior is None:
             return (0.0, np.zeros_like(self.value.ravel())) if grad else 0.0
         else:
-            return self.prior.get_logp(self.value.ravel(), grad)
+            return self.prior.get_logprior(self.value.ravel(), grad)
 
 
 class Parameterized(object):
@@ -133,16 +133,22 @@ class Parameterized(object):
         if grad is False:
             return sum((obj.get_logprior() for (_, obj) in self.__params), 0.0)
         else:
-            get_logp, dget_logp = 0.0, []
+            logp, dlogp = 0.0, []
             for (_, obj) in self.__params:
                 elem = obj.get_logprior(True)
-                get_logp += elem[0]
-                dget_logp.append(elem[1])
-            return get_logp, (np.hstack(dget_logp) if len(dget_logp) > 0 else
-                              np.array([]))
+                logp += elem[0]
+                dlogp.append(elem[1])
+            return logp, (np.hstack(dlogp) if len(dlogp) > 0 else
+                          np.array([]))
 
 
 class Model(Parameterized):
+    """
+    Base class for model objects. These objects should implement some form of
+    supervised learning wherein they can have data added to them and can
+    compute the marginal likelihood of the model (which can in turn be used for
+    optimizing or sampling hyperparameters).
+    """
     def __new__(cls, *args, **kwargs):
         self = super(Model, cls).__new__(cls, *args, **kwargs)
         self._X = None
@@ -151,12 +157,16 @@ class Model(Parameterized):
 
     @property
     def ndata(self):
-        """The number of independent observations added to the model."""
+        """
+        The number of independent observations added to the model.
+        """
         return 0 if self._X is None else self._X.shape[0]
 
     @property
     def data(self):
-        """A tuple containing the observed input- and output-data."""
+        """
+        Tuple containing the observed input- and output-data.
+        """
         return (self._X, self._Y)
 
     def add_data(self, X, Y):
@@ -165,40 +175,62 @@ class Model(Parameterized):
         """
         if self._X is None:
             self._X = X.copy()
-            self._Y = X.copy()
+            self._Y = Y.copy()
         else:
             self._X = np.r_[self._X, X]
             self._Y = np.r_[self._Y, Y]
 
-    def get_logposterior(self, grad=False):
+    def get_logpost(self, grad=False):
         """
         Compute the log posterior of the model.
         """
         if grad:
             logp0, dlogp0 = self.get_logprior(True)
-            logp1, dlogp1 = self.get_logp(True)
+            logp1, dlogp1 = self.get_loglike(True)
             return logp0+logp1, dlogp0+dlogp1
         else:
-            return self.get_logprior() + self.get_logp()
+            return self.get_logprior() + self.get_loglike()
 
-    def get_logp(self, grad=False):
+    def get_loglike(self, grad=False):
         """
         Compute the log likelihood of the model.
+        """
+        raise NotImplementedError
+
+    def get_meanvar(self, X, grad=False):
+        """
+        Compute the marginal mean and variance of the model, evaluated at input
+        locations X[i].
+
+        If grad is True then compute the derivative of these with respect to
+        the input location. Return either a 2-tuple or a 4-tuple of the form
+        (mu, s2, dmu, ds2) where the last two are omitted if grad is False.
+        """
+        raise NotImplementedError
+
+    def sample(self, X, m=None, latent=True, rng=None):
+        """
+        Sample values from the model, evaluated at input locations X[i].
+
+        If m is not None return an (m,n) array where n is the number of input
+        values in X; otherwise return an n-array.  If latent is True the sample
+        is only of the latent function, otherwise it will be corrupted by
+        observation noise. Finally, rng can be used to seed the randomness.
         """
         raise NotImplementedError
 
 
 class Prior(object):
     """
-    Base class for prior probability distributions.
+    Base class for prior objects.
     """
-    def get_logp(self, theta, grad=False):
+    def get_logprior(self, theta, grad=False):
         raise NotImplementedError
 
 
 class Likelihood(Parameterized):
     """
-    Base class for likelihood models.
+    Base class for likelihood objects.
     """
-    def get_logp(self, F, Y, grad=False):
+    def get_loglike(self, F, Y, grad=False):
         raise NotImplementedError
