@@ -197,6 +197,31 @@ class Model(Parameterized):
         """
         raise NotImplementedError
 
+    def predict(self, X):
+        """
+        Compute the model predictions.
+        """
+        raise NotImplementedError
+
+    def sample(self, X, m=None, rng=None):
+        """
+        Sample values from the model, evaluated at input locations X[i].
+
+        If m is not None return an (m,n) array where n is the number of input
+        values in X; otherwise return an n-array. Finally, rng can be used to
+        seed the randomness.
+        """
+        raise NotImplementedError
+
+
+class PosteriorModel(Model):
+    def predict(self, X, grad=False):
+        rval = self.get_meanvar(X, grad)
+        return (rval[0], rval[2]) if grad else rval[0]
+
+    def sample(self, X, m=None, latent=False, rng=None):
+        raise NotImplementedError
+
     def get_meanvar(self, X, grad=False):
         """
         Compute the marginal mean and variance of the model, evaluated at input
@@ -205,17 +230,6 @@ class Model(Parameterized):
         If grad is True then compute the derivative of these with respect to
         the input location. Return either a 2-tuple or a 4-tuple of the form
         (mu, s2, dmu, ds2) where the last two are omitted if grad is False.
-        """
-        raise NotImplementedError
-
-    def sample(self, X, m=None, latent=True, rng=None):
-        """
-        Sample values from the model, evaluated at input locations X[i].
-
-        If m is not None return an (m,n) array where n is the number of input
-        values in X; otherwise return an n-array.  If latent is True the sample
-        is only of the latent function, otherwise it will be corrupted by
-        observation noise. Finally, rng can be used to seed the randomness.
         """
         raise NotImplementedError
 
@@ -233,4 +247,7 @@ class Likelihood(Parameterized):
     Base class for likelihood objects.
     """
     def get_loglike(self, F, Y, grad=False):
+        raise NotImplementedError
+
+    def sample(self, F, m, rng=None):
         raise NotImplementedError
