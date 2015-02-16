@@ -9,7 +9,7 @@ from __future__ import print_function
 import numpy as np
 import copy
 
-__all__ = ['Parameter', 'Parameterized']
+__all__ = ['Parameterized']
 
 
 class Parameter(object):
@@ -17,7 +17,7 @@ class Parameter(object):
     Representation of a parameter vector.
     """
     def __init__(self, value, prior=None, transform=None):
-        self.value = np.array(value, dtype=float)
+        self.value = value
         self.nparams = self.value.size
         self.prior = prior
         self.transform = transform
@@ -72,17 +72,27 @@ class Parameterized(object):
         """
         return sum(obj.nparams for (_, obj) in self.__params)
 
-    def _register(self, name, param):
+    def _register(self, name, param, ndim=None):
         """
         Register a parameter.
         """
-        if not isinstance(param, (Parameter, Parameterized)):
-            raise ValueError('only objects of type Parameter or Parameterized '
-                             'can be registered')
+        if not isinstance(param, Parameterized):
+            # create the parameter vector
+            param = np.array(param,
+                             dtype=float,
+                             ndmin=(0 if ndim is None else ndim))
+
+            # check the size of the parameter
+            if ndim is not None and param.ndim > ndim:
+                raise ValueError("parameter '{:s}' must be {:d}-dimensional"
+                                 .format(name, ndim))
+
+            # create a parameter instance and save quick-access to the value
+            param = Parameter(param)
+            setattr(self, '_' + name, param.value)
+
         self.__params.append((name, param))
         self.__setattr__(name, param)
-        if isinstance(param, Parameter):
-            setattr(self, '_' + name, param.value)
 
     def get_params(self):
         """
