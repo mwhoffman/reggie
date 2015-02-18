@@ -34,6 +34,7 @@ class SE(Kernel):
         X2 = X2 / np.exp(self._logell)
         D = ssd.cdist(X1, X2, 'sqeuclidean')
         K = np.exp(self._logsf*2 - D/2)
+
         yield 2*K           # derivative wrt logsf
         if self._iso:
             yield K*D       # derivative wrt logell (iso)
@@ -41,3 +42,11 @@ class SE(Kernel):
             for i in xrange(X1.shape[1]):
                 D = ssd.cdist(X1[:, i, None], X2[:, i, None], 'sqeuclidean')
                 yield K*D   # derivatives wrt logell (ard)
+
+    def get_dkernel(self, X1):
+        return np.exp(self._logsf*2) * np.ones(len(X1))
+
+    def get_dgrad(self, X1):
+        yield 2 * self.get_dkernel(X1)
+        for _ in xrange(self.nhyper-1):
+            yield np.zeros(len(X1))

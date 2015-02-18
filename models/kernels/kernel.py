@@ -22,3 +22,9 @@ class Kernel(Parameterized):
 
     def get_grad(self, X1, X2):
         raise NotImplementedError
+
+    def get_dkernel(self, X1):
+        raise NotImplementedError
+
+    def get_dgrad(self, X1):
+        raise NotImplementedError
