@@ -48,5 +48,5 @@ class SE(Kernel):
 
     def get_dgrad(self, X1):
         yield 2 * self.get_dkernel(X1)
-        for _ in xrange(self.nhyper-1):
+        for _ in xrange(self.nparams-1):
             yield np.zeros(len(X1))
