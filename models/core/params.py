@@ -12,6 +12,20 @@ import copy
 __all__ = ['Parameterized']
 
 
+def _deepcopy(obj, memo):
+    """
+    Method equivalent to `copy.deepcopy` except that it ignored the
+    implementation of `obj.__deepcopy__`. This allows for an object to
+    implement deepcopy, populate its memo dictionary, and then call this
+    version of deepcopy.
+    """
+    ret = type(obj).__new__(type(obj))
+    memo[id(obj)] = ret
+    for key, val in obj.__dict__.items():
+        setattr(ret, key, copy.deepcopy(val, memo))
+    return ret
+
+
 class Parameter(object):
     """
     Representation of a parameter vector.
@@ -25,16 +39,25 @@ class Parameter(object):
     def __repr__(self):
         return np.array2string(self.value, separator=',')
 
-    def copy(self):
-        return copy.deepcopy(self)
+    def __deepcopy__(self, memo):
+        # this gets around a bug where copy.deepcopy(array) does not return an
+        # array when called on a 0-dimensional object.
+        memo[id(self.value)] = self.value.copy()
+        return _deepcopy(self, memo)
+
+    def copy(self, theta=None):
+        obj = copy.deepcopy(self)
+        if theta is not None:
+            obj.set_params(theta)
+        return obj
 
     def get_params(self):
         """Return the parameters."""
         return self.value.copy()
 
-    def set_params(self, hyper):
+    def set_params(self, theta):
         """Set the parameters."""
-        self.value.flat[:] = hyper
+        self.value.flat[:] = theta
 
     def get_logprior(self):
         """
@@ -59,18 +82,29 @@ class Parameterized(object):
 
     def __repr__(self):
         return (self.__class__.__name__ + '(' +
-                ', '.join('{:s}={:s}'.format(name, obj)
-                          for (name, obj) in self.__params) + ')')
+                ', '.join('{:s}={:s}'.format(name, param)
+                          for (name, param) in self.__params) + ')')
 
-    def copy(self):
-        return copy.deepcopy(self)
+    def __deepcopy__(self, memo):
+        # populate the memo with our param values so that these get copied
+        # first. this is in order to work around the 0-dimensional array bug
+        # noted in Parameter.
+        for _, param in self.__params:
+            copy.deepcopy(param, memo)
+        return _deepcopy(self, memo)
+
+    def copy(self, theta=None):
+        obj = copy.deepcopy(self)
+        if theta is not None:
+            obj.set_params(theta)
+        return obj
 
     @property
     def nparams(self):
         """
         Return the number of parameters for this object.
         """
-        return sum(obj.nparams for (_, obj) in self.__params)
+        return sum(param.nparams for _, param in self.__params)
 
     def _register(self, name, param, ndim=None):
         """
@@ -101,7 +135,7 @@ class Parameterized(object):
         if len(self.__params) == 0:
             return np.array([])
         else:
-            return np.hstack(obj.get_params() for (_, obj) in self.__params)
+            return np.hstack(param.get_params() for _, param in self.__params)
 
     def set_params(self, theta):
         """
@@ -112,8 +146,9 @@ class Parameterized(object):
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
         offset = 0
-        for _, obj in self.__params:
-            obj.set_params(theta[offset:offset+obj.nparams])
+        for _, param in self.__params:
+            param.set_params(theta[offset:offset+param.nparams])
+            offset += param.nparams
 
     def get_logprior(self):
         """
@@ -122,8 +157,8 @@ class Parameterized(object):
         """
         logp = 0.0
         dlogp = []
-        for (_, obj) in self.__params:
-            elem = obj.get_logprior()
+        for _, param in self.__params:
+            elem = param.get_logprior()
             logp += elem[0]
             dlogp.append(elem[1])
         return logp, (np.hstack(dlogp) if len(dlogp) > 0 else np.array([]))
