@@ -10,7 +10,8 @@ import numpy as np
 import scipy.linalg as sla
 
 from ..core.models import PosteriorModel
-from ..kernels.kernel import Kernel
+from ..kernels import Kernel
+from ..functions import Function, Zero
 
 __all__ = ['ExactGP']
 
@@ -21,10 +22,13 @@ class ExactGP(PosteriorModel):
     """
     Implementation of exact GP inference.
     """
-    def __init__(self, logsn, kernel, mean=0):
+    def __init__(self, logsn, kernel, mean=None):
+        if mean is None:
+            mean = Zero()
+
         self._register('logsn', logsn, ndim=0)
         self._register('kernel', kernel, Kernel)
-        self._register('mean', mean, ndim=0)
+        self._register('mean', mean, Function)
 
         # cached sufficient statistics
         self._R = None
@@ -34,7 +38,8 @@ class ExactGP(PosteriorModel):
         sn2 = np.exp(self._logsn*2)
         K = self.kernel.get_kernel(self._X, self._X)
         K = K + sn2 * np.eye(len(self._X))
-        r = self._Y - self._mean
+        r = self._Y - self.mean.get_function(self._X)
+
         self._R = sla.cholesky(K)
         self._a = sla.solve_triangular(self._R, r, trans=True)
 
@@ -57,13 +62,14 @@ class ExactGP(PosteriorModel):
              for dK in self.kernel.get_grad(self._X, self._X)],
 
             # derivative wrt the mean.
-            np.sum(alpha)]
+            [np.dot(dmu, alpha)
+             for dmu in self.mean.get_grad(self._X)]]
 
         return lZ, dlZ
 
     def get_posterior(self, X):
         # grab the prior mean and variance.
-        mu = np.full(X.shape[0], self._mean)
+        mu = self.mean.get_function(X)
         s2 = self.kernel.get_dkernel(X)
 
         if self._X is not None:
