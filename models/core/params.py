@@ -106,15 +106,23 @@ class Parameterized(object):
         """
         return sum(param.nparams for _, param in self.__params)
 
-    def _register(self, name, param, ndim=None):
+    def _register(self, name, param, req_class=None, ndim=None):
         """
         Register a parameter.
         """
+        if req_class is not None and not isinstance(param, req_class):
+            raise ValueError("parameter '{:s}' must be of type {:s}"
+                             .format(name, req_class.__name__))
+
         if not isinstance(param, Parameterized):
-            # create the parameter vector
-            param = np.array(param,
-                             dtype=float,
-                             ndmin=(0 if ndim is None else ndim))
+            try:
+                # create the parameter vector
+                param = np.array(param,
+                                 dtype=float,
+                                 ndmin=(0 if ndim is None else ndim))
+            except (TypeError, ValueError):
+                raise ValueError("parameter '{:s}' must be array-like"
+                                 .format(name))
 
             # check the size of the parameter
             if ndim is not None and param.ndim > ndim:

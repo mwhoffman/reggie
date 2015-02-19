@@ -10,6 +10,7 @@ import numpy as np
 import scipy.linalg as sla
 
 from ..core.models import PosteriorModel
+from ..kernels.kernel import Kernel
 
 __all__ = ['ExactGP']
 
@@ -22,7 +23,7 @@ class ExactGP(PosteriorModel):
     """
     def __init__(self, logsn, kernel, mean=0):
         self._register('logsn', logsn, ndim=0)
-        self._register('kernel', kernel)
+        self._register('kernel', kernel, Kernel)
         self._register('mean', mean, ndim=0)
 
         # cached sufficient statistics
