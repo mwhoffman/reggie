@@ -27,6 +27,10 @@ class Model(Parameterized):
         """
         return 0 if self._X is None else self._X.shape[0]
 
+    @property
+    def data(self):
+        return (self._X, self._Y)
+
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.
