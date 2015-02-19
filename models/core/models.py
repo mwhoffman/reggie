@@ -27,13 +27,6 @@ class Model(Parameterized):
         """
         return 0 if self._X is None else self._X.shape[0]
 
-    @property
-    def data(self):
-        """
-        Tuple containing the observed input- and output-data.
-        """
-        return (self._X, self._Y)
-
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.
@@ -41,9 +34,17 @@ class Model(Parameterized):
         if self._X is None:
             self._X = X.copy()
             self._Y = Y.copy()
+            self._update()
+
+        elif hasattr(self, '_updateinc'):
+            self._updateinc(X, Y)
+            self._X = np.r_[self._X, X]
+            self._Y = np.r_[self._Y, Y]
+
         else:
             self._X = np.r_[self._X, X]
             self._Y = np.r_[self._Y, Y]
+            self._update()
 
     def get_loglike(self):
         if self.ndata == 0:
@@ -51,8 +52,21 @@ class Model(Parameterized):
         else:
             return self._get_loglike()
 
+    def _update(self):
+        """
+        Update any internal parameters (ie sufficient statistics) given the
+        entire set of current data.
+        """
+        pass
+
     def _get_loglike(self):
         raise NotImplementedError
 
-    def sample(self, X):
+
+class PosteriorModel(Model):
+    def get_posterior(self, X):
+        """
+        Compute the first two moments of the marginal posterior, evaluated at
+        input points X.
+        """
         raise NotImplementedError
