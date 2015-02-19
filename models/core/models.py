@@ -56,6 +56,10 @@ class Model(Parameterized):
         else:
             return self._get_loglike()
 
+    def set_params(self, theta):
+        super(Model, self).set_params(theta)
+        self._update()
+
     def _update(self):
         """
         Update any internal parameters (ie sufficient statistics) given the

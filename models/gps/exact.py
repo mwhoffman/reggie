@@ -30,9 +30,9 @@ class ExactGP(PosteriorModel):
         self._a = None
 
     def _update(self):
-        sn2 = np.exp(self._logsn**2)
+        sn2 = np.exp(self._logsn*2)
         K = self.kernel.get_kernel(self._X, self._X)
-        K += sn2 * np.eye(len(self._X))
+        K = K + sn2 * np.eye(len(self._X))
         r = self._Y - self._mean
         self._R = sla.cholesky(K)
         self._a = sla.solve_triangular(self._R, r, trans=True)
@@ -53,7 +53,7 @@ class ExactGP(PosteriorModel):
 
             # derivative wrt each kernel hyperparameter.
             [-0.5*np.sum(Q*dK)
-             for dK in self._kernel.grad(self._X)],
+             for dK in self.kernel.get_grad(self._X, self._X)],
 
             # derivative wrt the mean.
             np.sum(alpha)]
