@@ -12,6 +12,10 @@ import copy
 __all__ = ['Parameterized']
 
 
+# CONSTANTS FOR ADJUSTING PARAMETER FORMATTING
+PRECISION = 2
+
+
 def _deepcopy(obj, memo):
     """
     Method equivalent to `copy.deepcopy` except that it ignored the
@@ -44,18 +48,26 @@ class Parameter(object):
     Representation of a parameter vector.
     """
     def __init__(self, value, prior=None, transform=None):
-        self.value = value
-        self.nparams = self.value.size
-        self.prior = prior
-        self.transform = transform
+        self.nparams = value.size
+        self._value = value
+        self._prior = prior
+        self._transform = transform
 
     def __repr__(self):
-        return np.array2string(self.value, separator=',')
+        if self._value.shape == ():
+            return np.array2string(self._value.ravel(),
+                                   precision=PRECISION,
+                                   suppress_small=True)[1:-1].strip()
+        else:
+            return np.array2string(self._value,
+                                   separator=',',
+                                   precision=PRECISION,
+                                   suppress_small=True)
 
     def __deepcopy__(self, memo):
         # this gets around a bug where copy.deepcopy(array) does not return an
         # array when called on a 0-dimensional object.
-        memo[id(self.value)] = self.value.copy()
+        memo[id(self._value)] = self._value.copy()
         return _deepcopy(self, memo)
 
     def copy(self, theta=None):
@@ -66,22 +78,22 @@ class Parameter(object):
 
     def get_params(self, transform=False):
         """Return the parameters."""
-        if transform and self.transform is not None:
-            return self.transform.get_transform(self.value)
+        if transform and self._transform is not None:
+            return self._transform.get_transform(self._value)
         else:
-            return self.value.copy()
+            return self._value.copy()
 
     def set_params(self, theta, transform=False):
         """Set the parameters."""
-        if transform and self.transform is not None:
-            theta = self.transform.get_inverse(theta)
-        self.value.flat[:] = theta
+        if transform and self._transform is not None:
+            theta = self._transform.get_inverse(theta)
+        self._value.flat[:] = theta
 
     def transform_grad(self, theta, dtheta):
-        if self.transform is None:
+        if self._transform is None:
             return dtheta.copy()
         else:
-            return dtheta * self.transform.get_dinverse(theta)
+            return dtheta * self._transform.get_dinverse(theta)
 
     def get_logprior(self):
         """
@@ -89,10 +101,10 @@ class Parameter(object):
         vector. Also if requested return the gradient of this probability with
         respect to the parameter values.
         """
-        if self.prior is None:
-            return (0.0, np.zeros_like(self.value.ravel()))
+        if self._prior is None:
+            return (0.0, np.zeros_like(self._value.ravel()))
         else:
-            return self.prior.get_logprior(self.value.ravel())
+            return self._prior.get_logprior(self._value.ravel())
 
 
 class Parameterized(object):
@@ -105,9 +117,13 @@ class Parameterized(object):
         return self
 
     def __repr__(self):
-        return (self.__class__.__name__ + '(' +
-                ', '.join('{:s}={:s}'.format(name, param)
-                          for (name, param) in self.__params) + ')')
+        typename = self.__class__.__name__
+        parts = ['{:s}={:s}'.format(n, p) for n, p in self.__params]
+        if any(isinstance(p, Parameterized) for _, p in self.__params):
+            sep = ',\n' + ' ' * (1+len(typename))
+        else:
+            sep = ', '
+        return typename + '(' + sep.join(parts) + ')'
 
     def __deepcopy__(self, memo):
         # populate the memo with our param values so that these get copied
@@ -155,7 +171,7 @@ class Parameterized(object):
 
             # create a parameter instance and save quick-access to the value
             param = Parameter(param)
-            setattr(self, '_' + name, param.value)
+            setattr(self, '_' + name, param._value)
 
         self.__params.append((name, param))
         self.__setattr__(name, param)
