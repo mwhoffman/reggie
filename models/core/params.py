@@ -26,6 +26,19 @@ def _deepcopy(obj, memo):
     return ret
 
 
+def _get_offsets(params):
+    """
+    Given a list of (name, param) tuples, iterate through this list and
+    generate a sequence of (param, a, b) tuples where a and b are the indices
+    into an external parameter vector.
+    """
+    a = 0
+    for _, param in params:
+        b = a + param.nparams
+        yield param, a, b
+        a = b
+
+
 class Parameter(object):
     """
     Representation of a parameter vector.
@@ -51,13 +64,24 @@ class Parameter(object):
             obj.set_params(theta)
         return obj
 
-    def get_params(self):
+    def get_params(self, transform=False):
         """Return the parameters."""
-        return self.value.copy()
+        if transform and self.transform is not None:
+            return self.transform.get_transform(self.value)
+        else:
+            return self.value.copy()
 
-    def set_params(self, theta):
+    def set_params(self, theta, transform=False):
         """Set the parameters."""
+        if transform and self.transform is not None:
+            theta = self.transform.get_inverse(theta)
         self.value.flat[:] = theta
+
+    def transform_grad(self, theta, dtheta):
+        if self.transform is None:
+            return dtheta.copy()
+        else:
+            return dtheta * self.transform.get_dinverse(theta)
 
     def get_logprior(self):
         """
@@ -136,27 +160,42 @@ class Parameterized(object):
         self.__params.append((name, param))
         self.__setattr__(name, param)
 
-    def get_params(self):
+    def get_params(self, transform=False):
         """
         Return a flattened vector consisting of the parameters for the object.
         """
         if len(self.__params) == 0:
             return np.array([])
         else:
-            return np.hstack(param.get_params() for _, param in self.__params)
+            return np.hstack(param.get_params(transform)
+                             for _, param in self.__params)
 
-    def set_params(self, theta):
+    def set_params(self, theta, transform=False):
         """
         Given a parameter vector of the appropriate size, assign the values of
         this vector to the internal parameters.
         """
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
+
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
-        offset = 0
-        for _, param in self.__params:
-            param.set_params(theta[offset:offset+param.nparams])
-            offset += param.nparams
+
+        for param, a, b in _get_offsets(self.__params):
+            param.set_params(theta[a:b], transform)
+
+    def transform_grad(self, theta, dtheta):
+        theta = np.array(theta, dtype=float, copy=False, ndmin=1)
+        dtheta = np.array(dtheta, dtype=float, copy=False, ndmin=1)
+        shape = (self.nparams,)
+
+        if theta.shape != shape or dtheta.shape != shape:
+            raise ValueError('incorrect number of parameters')
+
+        if len(self.__params) == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.transform_grad(theta[a:b], dtheta[a:b])
+                             for param, a, b in _get_offsets(self.__params))
 
     def get_logprior(self):
         """

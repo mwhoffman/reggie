@@ -56,8 +56,8 @@ class Model(Parameterized):
         else:
             return self._get_loglike()
 
-    def set_params(self, theta):
-        super(Model, self).set_params(theta)
+    def set_params(self, theta, transform=False):
+        super(Model, self).set_params(theta, transform)
         self._update()
 
     def _update(self):

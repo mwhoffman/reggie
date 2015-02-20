@@ -14,7 +14,7 @@ from .core.models import PosteriorModel
 __all__ = ['plot_posterior']
 
 
-def plot_posterior(model, xmin=None, xmax=None):
+def plot_posterior(model, draw=True, xmin=None, xmax=None):
     if not isinstance(model, PosteriorModel):
         raise ValueError('model must be a PosteriorModel instance')
 
@@ -50,3 +50,6 @@ def plot_posterior(model, xmin=None, xmax=None):
                marker='o', s=30, lw=1, facecolors='none', label='data')
 
     ax.axis('tight')
+
+    if draw:
+        ax.figure.canvas.draw()
