@@ -33,4 +33,4 @@ def optimize(gp):
     theta, _, _ = so.fmin_l_bfgs_b(objective, gp.get_params(True))
 
     # make sure that the gp is using the correct hypers
-    gp.set_params(theta)
+    gp.set_params(theta, True)
