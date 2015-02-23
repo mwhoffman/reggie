@@ -33,19 +33,6 @@ def _deepcopy(obj, memo):
     return ret
 
 
-def _get_offsets(params):
-    """
-    Given a list of (name, param) tuples, iterate through this list and
-    generate a sequence of (param, a, b) tuples where a and b are the indices
-    into an external parameter vector.
-    """
-    a = 0
-    for _, param in params:
-        b = a + param.nparams
-        yield param, a, b
-        a = b
-
-
 class Parameter(object):
     """
     Representation of a parameter vector.
@@ -97,11 +84,11 @@ class Parameter(object):
             raise ValueError('transform must be an instance of Transform')
         self._transform = transform
 
-    def transform_grad(self, theta, grad):
+    def get_gradfactor(self):
         if self._transform is None:
-            return grad.copy()
+            return np.ones(self.nparams)
         else:
-            return grad * self._transform.get_inverse_grad(theta)
+            return self._transform.get_gradfactor(self._value)
 
     def get_logprior(self):
         """
@@ -221,22 +208,18 @@ class Parameterized(object):
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
-        for param, a, b in _get_offsets(self.__params):
+        a = 0
+        for _, param in self.__params:
+            b = a + param.nparams
             param.set_params(theta[a:b], transform)
+            a = b
 
-    def transform_grad(self, theta, grad):
-        theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-        grad = np.array(grad, dtype=float, copy=False, ndmin=1)
-        shape = (self.nparams,)
-
-        if grad.shape != shape or theta.shape != shape:
-            raise ValueError('incorrect number of parameters')
-
+    def get_gradfactor(self):
         if len(self.__params) == 0:
             return np.array([])
         else:
-            return np.hstack(param.transform_grad(theta[a:b], grad[a:b])
-                             for param, a, b in _get_offsets(self.__params))
+            return np.hstack(param.get_gradfactor()
+                             for _, param in self.__params)
 
     def get_logprior(self):
         """

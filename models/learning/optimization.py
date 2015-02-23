@@ -20,12 +20,17 @@ def optimize(model):
 
     # define the objective to MINIMIZE
     def objective(theta):
+        # update the temporary model using parameters in the transformed space
         model_.set_params(theta, True)
+
+        # get the log-probability and its gradient in the untransformed space
         logp0, dlogp0 = model_.get_logprior()
         logp1, dlogp1 = model_.get_loglike()
 
+        # form the posterior probability and multiply by the grad factor which
+        # gives us the gradient in the transformed space (via the chain rule)
         logp = -(logp0 + logp1)
-        dlogp = -model_.transform_grad(theta, dlogp0 + dlogp1)
+        dlogp = -(dlogp0 + dlogp1) * model_.get_gradfactor()
 
         return logp, dlogp
 
