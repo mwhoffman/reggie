@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import copy
-import prettytable as pt
+import tabulate
 
 from .transforms import Transform
 
@@ -193,14 +193,15 @@ class Parameterized(object):
                 yield name, param
 
     def describe(self):
-        t = pt.PrettyTable(['name', 'value', 'prior', 'transform'])
-        t.align['name'] = 'l'
+        headers = ['name', 'value', 'prior', 'transform']
+        table = []
         for name, param in self._walk_params():
-            prior, trans = param._prior, param._transform
+            prior = param._prior
+            trans = param._transform
             prior = '-' if prior is None else str(prior)
             trans = '-' if trans is None else type(trans).__name__
-            t.add_row([name, str(param), prior, trans])
-        print(t)
+            table.append([name, str(param), prior, trans])
+        print(tabulate.tabulate(table, headers))
 
     def get_params(self, transform=False):
         """
