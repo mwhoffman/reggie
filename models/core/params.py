@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import copy
+import prettytable as pt
 
 from .transforms import Transform
 
@@ -72,10 +73,10 @@ class Parameter(object):
         memo[id(self._value)] = self._value.copy()
         return _deepcopy(self, memo)
 
-    def copy(self, theta=None):
+    def copy(self, theta=None, transform=False):
         obj = copy.deepcopy(self)
         if theta is not None:
-            obj.set_params(theta)
+            obj.set_params(theta, transform)
         return obj
 
     def get_params(self, transform=False):
@@ -140,10 +141,10 @@ class Parameterized(object):
             copy.deepcopy(param, memo)
         return _deepcopy(self, memo)
 
-    def copy(self, theta=None):
+    def copy(self, theta=None, transform=False):
         obj = copy.deepcopy(self)
         if theta is not None:
-            obj.set_params(theta)
+            obj.set_params(theta, transform)
         return obj
 
     @property
@@ -182,6 +183,24 @@ class Parameterized(object):
 
         self.__params.append((name, param))
         self.__setattr__(name, param)
+
+    def _walk_params(self):
+        for name, param in self.__params:
+            if isinstance(param, Parameterized):
+                for name_, param_ in param._walk_params():
+                    yield name + '.' + name_, param_
+            else:
+                yield name, param
+
+    def describe(self):
+        t = pt.PrettyTable(['name', 'value', 'prior', 'transform'])
+        t.align['name'] = 'l'
+        for name, param in self._walk_params():
+            prior, trans = param._prior, param._transform
+            prior = '-' if prior is None else str(prior)
+            trans = '-' if trans is None else type(trans).__name__
+            t.add_row([name, str(param), prior, trans])
+        print(t)
 
     def get_params(self, transform=False):
         """
