@@ -219,10 +219,8 @@ class Parameterized(object):
         this vector to the internal parameters.
         """
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
-
         for param, a, b in _get_offsets(self.__params):
             param.set_params(theta[a:b], transform)
 
