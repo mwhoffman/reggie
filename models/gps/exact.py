@@ -9,9 +9,10 @@ from __future__ import print_function
 import numpy as np
 import scipy.linalg as sla
 
-from ..core.models import PosteriorModel
 from ..kernels import Kernel
-from ..functions import Function, Zero
+from ..functions import Function, Constant
+from ..core.models import PosteriorModel
+from ..core.transforms import Log
 
 __all__ = ['ExactGP']
 
@@ -22,22 +23,24 @@ class ExactGP(PosteriorModel):
     """
     Implementation of exact GP inference.
     """
-    def __init__(self, logsn, kernel, mean=None):
+    def __init__(self, sn2, kernel, mean=None):
         if mean is None:
-            mean = Zero()
+            mean = Constant(0.0)
 
-        self._register('logsn', logsn, ndim=0)
+        self._register('sn2', sn2, ndim=0)
         self._register('kernel', kernel, Kernel)
         self._register('mean', mean, Function)
+
+        # sample/optimize the noise variance in log-space
+        self.sn2.set_transform(Log())
 
         # cached sufficient statistics
         self._R = None
         self._a = None
 
     def _update(self):
-        sn2 = np.exp(self._logsn*2)
         K = self.kernel.get_kernel(self._X, self._X)
-        K = K + sn2 * np.eye(len(self._X))
+        K = K + self._sn2 * np.eye(len(self._X))
         r = self._Y - self.mean.get_function(self._X)
 
         self._R = sla.cholesky(K)
@@ -52,10 +55,9 @@ class ExactGP(PosteriorModel):
         Q = sla.cho_solve((self._R, False), np.eye(self.ndata))
         Q -= np.outer(alpha, alpha)
 
-        sn2 = np.exp(self._logsn*2)
         dlZ = np.r_[
             # derivative wrt the likelihood's noise term.
-            -sn2 * np.trace(Q),
+            -0.5*np.trace(Q),
 
             # derivative wrt each kernel hyperparameter.
             [-0.5*np.sum(Q*dK)
