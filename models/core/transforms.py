@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-__all__ = []
+__all__ = ['Log']
 
 
 class Transform(object):
@@ -22,18 +22,17 @@ class Transform(object):
         """
         raise NotImplementedError
 
-    def get_inverse(self, fx):
+    def get_gradfactor(self, x):
         """
-        Apply the inverse transformation which takes a transformed parameter
-        `f(x)` and returns the original value `x`.
+        Get the gradient factor for the transformation. This computes and
+        returns the gradient of `f^{-1}(t)` evaluated at `t=f(x)`.
         """
         raise NotImplementedError
 
-    def get_gradfactor(self, x):
+    def get_inverse(self, t):
         """
-        Get the gradient factor for the transformation. This vector is
-        evaluated at input x and can be used to multiply a gradient vector in
-        order to obtain a gradient with respect to the transformed inputs.
+        Apply the inverse transformation which takes a transformed parameter
+        `t=f(x)` and returns the original value `x`.
         """
         raise NotImplementedError
 
@@ -42,8 +41,8 @@ class Log(Transform):
     def get_transform(self, x):
         return np.log(x)
 
-    def get_inverse(self, fx):
-        return np.exp(fx)
-
     def get_gradfactor(self, x):
         return x.copy()
+
+    def get_inverse(self, t):
+        return np.exp(t)
