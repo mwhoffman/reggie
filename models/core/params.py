@@ -9,6 +9,8 @@ from __future__ import print_function
 import numpy as np
 import copy
 
+from .transforms import Transform
+
 __all__ = ['Parameterized']
 
 
@@ -89,11 +91,16 @@ class Parameter(object):
             theta = self._transform.get_inverse(theta)
         self._value.flat[:] = theta
 
-    def transform_grad(self, theta, dtheta):
+    def set_transform(self, transform):
+        if not isinstance(transform, Transform):
+            raise ValueError('transform must be an instance of Transform')
+        self._transform = transform
+
+    def transform_grad(self, theta, grad):
         if self._transform is None:
-            return dtheta.copy()
+            return grad.copy()
         else:
-            return dtheta * self._transform.get_dinverse(theta)
+            return grad * self._transform.get_inverse_grad(theta)
 
     def get_logprior(self):
         """
@@ -199,18 +206,18 @@ class Parameterized(object):
         for param, a, b in _get_offsets(self.__params):
             param.set_params(theta[a:b], transform)
 
-    def transform_grad(self, theta, dtheta):
+    def transform_grad(self, theta, grad):
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-        dtheta = np.array(dtheta, dtype=float, copy=False, ndmin=1)
+        grad = np.array(grad, dtype=float, copy=False, ndmin=1)
         shape = (self.nparams,)
 
-        if theta.shape != shape or dtheta.shape != shape:
+        if grad.shape != shape or theta.shape != shape:
             raise ValueError('incorrect number of parameters')
 
         if len(self.__params) == 0:
             return np.array([])
         else:
-            return np.hstack(param.transform_grad(theta[a:b], dtheta[a:b])
+            return np.hstack(param.transform_grad(theta[a:b], grad[a:b])
                              for param, a, b in _get_offsets(self.__params))
 
     def get_logprior(self):
