@@ -24,8 +24,8 @@ def optimize(model):
         model_.set_params(theta, True)
 
         # get the log-probability and its gradient in the untransformed space
-        logp0, dlogp0 = model_.get_logprior()
-        logp1, dlogp1 = model_.get_loglike()
+        logp0, dlogp0 = model_.get_logprior(True)
+        logp1, dlogp1 = model_.get_loglike(True)
 
         # form the posterior probability and multiply by the grad factor which
         # gives us the gradient in the transformed space (via the chain rule)

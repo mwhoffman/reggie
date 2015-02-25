@@ -46,10 +46,13 @@ class ExactGP(PosteriorModel):
         self._R = sla.cholesky(K)
         self._a = sla.solve_triangular(self._R, r, trans=True)
 
-    def _get_loglike(self):
+    def _get_loglike(self, grad=False):
         lZ = -0.5 * np.inner(self._a, self._a)
         lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
         lZ -= np.sum(np.log(self._R.diagonal()))
+
+        if grad is False:
+            return lZ
 
         alpha = sla.solve_triangular(self._R, self._a, trans=False)
         Q = sla.cho_solve((self._R, False), np.eye(self.ndata))

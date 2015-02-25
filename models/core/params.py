@@ -90,16 +90,16 @@ class Parameter(object):
         else:
             return self._transform.get_gradfactor(self._value)
 
-    def get_logprior(self):
+    def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments for this parameter
         vector. Also if requested return the gradient of this probability with
         respect to the parameter values.
         """
         if self._prior is None:
-            return (0.0, np.zeros_like(self._value.ravel()))
+            return (0.0, np.zeros_like(self._value.ravel())) if grad else 0.0
         else:
-            return self._prior.get_logprior(self._value.ravel())
+            return self._prior.get_logprior(self._value.ravel(), grad)
 
 
 class Parameterized(object):
@@ -194,7 +194,7 @@ class Parameterized(object):
         """
         Return a flattened vector consisting of the parameters for the object.
         """
-        if len(self.__params) == 0:
+        if self.nparams == 0:
             return np.array([])
         else:
             return np.hstack(param.get_params(transform)
@@ -215,21 +215,28 @@ class Parameterized(object):
             a = b
 
     def get_gradfactor(self):
-        if len(self.__params) == 0:
+        if self.nparams == 0:
             return np.array([])
         else:
             return np.hstack(param.get_gradfactor()
                              for _, param in self.__params)
 
-    def get_logprior(self):
+    def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments to a parameterized
         object as well as the gradient with respect to those parameters.
         """
-        logp = 0.0
-        dlogp = []
-        for _, param in self.__params:
-            elem = param.get_logprior()
-            logp += elem[0]
-            dlogp.append(elem[1])
-        return logp, (np.hstack(dlogp) if len(dlogp) > 0 else np.array([]))
+        if not grad:
+            return sum(param.get_logprior(False) for _, param in self.__params)
+
+        elif self.nparams == 0:
+            return 0, np.array([])
+
+        else:
+            logp = 0.0
+            dlogp = []
+            for _, param in self.__params:
+                elem = param.get_logprior(True)
+                logp += elem[0]
+                dlogp.append(elem[1])
+            return logp, np.hstack(dlogp)

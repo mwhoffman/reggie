@@ -50,11 +50,11 @@ class Model(Parameterized):
             self._Y = np.r_[self._Y, Y]
             self._update()
 
-    def get_loglike(self):
+    def get_loglike(self, grad=False):
         if self.ndata == 0:
-            return 0.0, np.zeros(self.nparams)
+            return (0.0, np.zeros(self.nparams)) if grad else 0.0
         else:
-            return self._get_loglike()
+            return self._get_loglike(grad)
 
     def set_params(self, theta, transform=False):
         super(Model, self).set_params(theta, transform)
@@ -67,7 +67,7 @@ class Model(Parameterized):
         """
         pass
 
-    def _get_loglike(self):
+    def _get_loglike(self, grad=False):
         raise NotImplementedError
 
 
