@@ -31,6 +31,10 @@ class Model(Parameterized):
     def data(self):
         return (self._X, self._Y)
 
+    @property
+    def bounds(self):
+        return zip(self._X.min(axis=0), self._X.max(axis=0))
+
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.

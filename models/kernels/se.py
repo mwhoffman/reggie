@@ -21,6 +21,11 @@ def rescale(ell, X1, X2=None):
     return X1, X2
 
 
+def diff(X1, X2=None):
+    X2 = X1 if (X2 is None) else X2
+    return X1[:, None, :] - X2[None, :, :]
+
+
 def dist(X1, X2=None, metric='sqeuclidean'):
     X2 = X1 if (X2 is None) else X2
     return ssd.cdist(X1, X2, metric)
@@ -69,3 +74,10 @@ class SE(Kernel):
         yield np.ones(len(X1))
         for _ in xrange(self.nparams-1):
             yield np.zeros(len(X1))
+
+    def get_gradx(self, X1, X2=None):
+        X1, X2 = rescale(self._ell, X1, X2)
+        D = diff(X1, X2)
+        K = self._rho * np.exp(-0.5 * np.sum(D**2, axis=-1))
+        G = -K[:, :, None] * D / self._ell
+        return G

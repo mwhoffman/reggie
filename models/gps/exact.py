@@ -51,7 +51,7 @@ class ExactGP(PosteriorModel):
         lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
         lZ -= np.sum(np.log(self._R.diagonal()))
 
-        if grad is False:
+        if not grad:
             return lZ
 
         alpha = sla.solve_triangular(self._R, self._a, trans=False)
@@ -72,7 +72,7 @@ class ExactGP(PosteriorModel):
 
         return lZ, dlZ
 
-    def get_posterior(self, X):
+    def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
         mu = self.mean.get_function(X)
         s2 = self.kernel.get_dkernel(X)
@@ -87,4 +87,24 @@ class ExactGP(PosteriorModel):
             mu += np.dot(RK.T, self._a)
             s2 -= np.sum(RK**2, axis=0)
 
-        return mu, s2
+        if not grad:
+            return mu, s2
+
+        # Get the prior gradients.
+        dmu = self.mean.get_gradx(X)
+        ds2 = np.zeros_like(X)
+
+        # NOTE: the above assumes a constant mean and stationary kernel (which
+        # we satisfy, but should we change either assumption...).
+
+        if self._X is not None:
+            dK = np.rollaxis(self.kernel.get_gradx(X, self._X), 1)
+            dK = dK.reshape(self.ndata, -1)
+
+            RdK = sla.solve_triangular(self._R, dK, trans=True)
+            dmu += np.dot(RdK.T, self._a).reshape(X.shape)
+
+            RdK = np.rollaxis(np.reshape(RdK, (-1,) + X.shape), 2)
+            ds2 -= 2 * np.sum(RdK * RK, axis=1).T
+
+        return mu, s2, dmu, ds2

@@ -20,6 +20,9 @@ class Zero(Function):
     def get_grad(self, X):
         return iter([])
 
+    def get_gradx(self, X):
+        return np.zeros_like(X)
+
 
 class Constant(Function):
     def __init__(self, bias=0):
@@ -30,3 +33,6 @@ class Constant(Function):
 
     def get_grad(self, X):
         yield np.ones(len(X))
+
+    def get_gradx(self, X):
+        return np.zeros_like(X)
