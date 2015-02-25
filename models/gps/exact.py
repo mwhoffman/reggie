@@ -39,7 +39,7 @@ class ExactGP(PosteriorModel):
         self._a = None
 
     def _update(self):
-        K = self.kernel.get_kernel(self._X, self._X)
+        K = self.kernel.get_kernel(self._X)
         K = K + self._sn2 * np.eye(len(self._X))
         r = self._Y - self.mean.get_function(self._X)
 
@@ -61,7 +61,7 @@ class ExactGP(PosteriorModel):
 
             # derivative wrt each kernel hyperparameter.
             [-0.5*np.sum(Q*dK)
-             for dK in self.kernel.get_grad(self._X, self._X)],
+             for dK in self.kernel.get_grad(self._X)],
 
             # derivative wrt the mean.
             [np.dot(dmu, alpha)

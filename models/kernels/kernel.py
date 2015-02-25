@@ -22,12 +22,12 @@ class Kernel(Parameterized):
     def __call__(self, x1, x2):
         X1 = np.array(x1, ndmin=1)[None]
         X2 = np.array(x2, ndmin=1)[None]
-        return self.get_kernel(X1, X2)[0]
+        return self.get_kernel(X1, X2)[0, 0]
 
-    def get_kernel(self, X1, X2):
+    def get_kernel(self, X1, X2=None):
         raise NotImplementedError
 
-    def get_grad(self, X1, X2):
+    def get_grad(self, X1, X2=None):
         raise NotImplementedError
 
     def get_dkernel(self, X1):
