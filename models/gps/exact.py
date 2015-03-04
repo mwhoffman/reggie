@@ -27,21 +27,18 @@ class ExactGP(PosteriorModel):
         if mean is None:
             mean = Constant(0.0)
 
-        self._register('sn2', sn2)
-        self._register('kernel', kernel, Kernel)
-        self._register('mean', mean, Function)
-
-        # sample/optimize the noise variance in log-space
-        self.sn2.set_transform(Log())
+        self._sn2 = self._register('sn2', sn2, transform=Log())
+        self._kernel = self._register('kernel', kernel, Kernel)
+        self._mean = self._register('mean', mean, Function)
 
         # cached sufficient statistics
         self._R = None
         self._a = None
 
     def _update(self):
-        K = self.kernel.get_kernel(self._X)
+        K = self._kernel.get_kernel(self._X)
         K = K + self._sn2 * np.eye(len(self._X))
-        r = self._Y - self.mean.get_function(self._X)
+        r = self._Y - self._mean.get_function(self._X)
 
         self._R = sla.cholesky(K)
         self._a = sla.solve_triangular(self._R, r, trans=True)
@@ -64,21 +61,21 @@ class ExactGP(PosteriorModel):
 
             # derivative wrt each kernel hyperparameter.
             [-0.5*np.sum(Q*dK)
-             for dK in self.kernel.get_grad(self._X)],
+             for dK in self._kernel.get_grad(self._X)],
 
             # derivative wrt the mean.
             [np.dot(dmu, alpha)
-             for dmu in self.mean.get_grad(self._X)]]
+             for dmu in self._mean.get_grad(self._X)]]
 
         return lZ, dlZ
 
     def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
-        mu = self.mean.get_function(X)
-        s2 = self.kernel.get_dkernel(X)
+        mu = self._mean.get_function(X)
+        s2 = self._kernel.get_dkernel(X)
 
         if self._X is not None:
-            K = self.kernel.get_kernel(self._X, X)
+            K = self._kernel.get_kernel(self._X, X)
             RK = sla.solve_triangular(self._R, K, trans=True)
 
             # add the contribution to the mean coming from the posterior and
@@ -91,14 +88,14 @@ class ExactGP(PosteriorModel):
             return mu, s2
 
         # Get the prior gradients.
-        dmu = self.mean.get_gradx(X)
+        dmu = self._mean.get_gradx(X)
         ds2 = np.zeros_like(X)
 
         # NOTE: the above assumes a constant mean and stationary kernel (which
         # we satisfy, but should we change either assumption...).
 
         if self._X is not None:
-            dK = np.rollaxis(self.kernel.get_gradx(X, self._X), 1)
+            dK = np.rollaxis(self._kernel.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 
             RdK = sla.solve_triangular(self._R, dK, trans=True)

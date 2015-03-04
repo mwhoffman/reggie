@@ -32,7 +32,7 @@ class Constant(RealFunction):
     Function which returns a constant value on any input.
     """
     def __init__(self, bias=0):
-        self._register('bias', bias)
+        self._bias = self._register('bias', bias)
 
     def get_function(self, X):
         return np.full(len(X), self._bias)

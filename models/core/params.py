@@ -10,6 +10,8 @@ import numpy as np
 import copy
 import tabulate
 
+from collections import OrderedDict
+
 from .transforms import Transform
 
 __all__ = ['Parameterized']
@@ -80,7 +82,7 @@ class Parameter(object):
         self._value.flat[:] = theta
 
     def set_transform(self, transform):
-        if not isinstance(transform, Transform):
+        if not ((transform is None) or isinstance(transform, Transform)):
             raise ValueError('transform must be an instance of Transform')
         self._transform = transform
 
@@ -108,26 +110,42 @@ class Parameterized(object):
     """
     def __new__(cls, *args, **kwargs):
         self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
-        # pylint: disable-msg=W0212
-        self.__params = []
-        self.__kwargs = []
+        # pylint: disable=W0212
+        self.__params = OrderedDict()
+        self.__kwargs = OrderedDict()
         return self
 
     def __repr__(self):
         typename = self.__class__.__name__
-        parts = self.__params + self.__kwargs
+        parts = self.__params.items() + self.__kwargs.items()
         parts = ['{:s}={:s}'.format(n, repr(p)) for n, p in parts]
-        if any(isinstance(p, Parameterized) for _, p in self.__params):
+        if any(isinstance(p, Parameterized) for p in self.__params.values()):
             sep = ',\n' + ' ' * (1+len(typename))
         else:
             sep = ', '
         return typename + '(' + sep.join(parts) + ')'
 
+    def __getitem__(self, key):
+        node = self
+        try:
+            for part in key.split('.'):
+                # pylint: disable=W0212
+                node = node.__params[part]
+            if not isinstance(node, Parameter):
+                raise KeyError
+        except KeyError:
+            raise ValueError('Unknown parameter: {:s}'.format(key))
+        return node
+
+    def __setitem__(self, key, value):
+        node = self[key]
+        node.set_params(value)
+
     def __deepcopy__(self, memo):
         # populate the memo with our param values so that these get copied
         # first. this is in order to work around the 0-dimensional array bug
         # noted in Parameter.
-        for _, param in self.__params:
+        for param in self.__params.values():
             copy.deepcopy(param, memo)
         return _deepcopy(self, memo)
 
@@ -142,12 +160,13 @@ class Parameterized(object):
         """
         Return the number of parameters for this object.
         """
-        return sum(param.nparams for _, param in self.__params)
+        return sum(param.nparams for param in self.__params.values())
 
-    def _kwarg(self, name, value):
-        self.__kwargs.append((name, value))
+    def _kwarg(self, name, value, default=None):
+        if value != default:
+            self.__kwargs[name] = value
 
-    def _register(self, name, param, klass=None, shape=()):
+    def _register(self, name, param, klass=None, transform=None, shape=()):
         """
         Register a parameter.
         """
@@ -155,7 +174,11 @@ class Parameterized(object):
             raise ValueError("parameter '{:s}' must be of type {:s}"
                              .format(name, klass.__name__))
 
-        if not isinstance(param, Parameterized):
+        if isinstance(param, Parameterized):
+            # save the parameterized object
+            self.__params[name] = param
+
+        else:
             try:
                 # create the parameter vector
                 param = np.array(param, dtype=float, ndmin=len(shape))
@@ -163,28 +186,27 @@ class Parameterized(object):
                 raise ValueError("parameter '{:s}' must be array-like"
                                  .format(name))
 
-            # check the size of the parameter
+            # construct the desired shape
             shapes = dict()
             shape_ = tuple(
                 (shapes.setdefault(d, d_) if isinstance(d, str) else d)
                 for (d, d_) in zip(shape, param.shape))
 
+            # check the size of the parameter
             if param.shape != shape_:
                 raise ValueError("parameter '{:s}' must have shape ({:s})"
                                  .format(name, ', '.join(map(str, shape))))
 
-            # create a parameter instance and save quick-access to the value
-            # pylint: disable-msg=W0212
-            param = Parameter(param)
-            setattr(self, '_' + name, param._value)
+            # save the parameter
+            self.__params[name] = Parameter(param, None, transform)
 
-        self.__params.append((name, param))
-        self.__setattr__(name, param)
+        # save the parameter
+        return param
 
     def _walk_params(self):
-        for name, param in self.__params:
+        for name, param in self.__params.items():
             if isinstance(param, Parameterized):
-                # pylint: disable-msg=W0212
+                # pylint: disable=W0212
                 for name_, param_ in param._walk_params():
                     yield name + '.' + name_, param_
             else:
@@ -194,7 +216,7 @@ class Parameterized(object):
         headers = ['name', 'value', 'prior', 'transform']
         table = []
         for name, param in self._walk_params():
-            # pylint: disable-msg=W0212
+            # pylint: disable=W0212
             prior = param._prior
             trans = param._transform
             prior = '-' if prior is None else str(prior)
@@ -210,7 +232,7 @@ class Parameterized(object):
             return np.array([])
         else:
             return np.hstack(param.get_params(transform)
-                             for _, param in self.__params)
+                             for param in self.__params.values())
 
     def set_params(self, theta, transform=False):
         """
@@ -221,7 +243,7 @@ class Parameterized(object):
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
         a = 0
-        for _, param in self.__params:
+        for param in self.__params.values():
             b = a + param.nparams
             param.set_params(theta[a:b], transform)
             a = b
@@ -231,7 +253,7 @@ class Parameterized(object):
             return np.array([])
         else:
             return np.hstack(param.get_gradfactor()
-                             for _, param in self.__params)
+                             for param in self.__params.values())
 
     def get_logprior(self, grad=False):
         """
@@ -239,7 +261,8 @@ class Parameterized(object):
         object as well as the gradient with respect to those parameters.
         """
         if not grad:
-            return sum(param.get_logprior(False) for _, param in self.__params)
+            return sum(param.get_logprior(False)
+                       for param in self.__params.values())
 
         elif self.nparams == 0:
             return 0, np.array([])
@@ -247,7 +270,7 @@ class Parameterized(object):
         else:
             logp = 0.0
             dlogp = []
-            for _, param in self.__params:
+            for param in self.__params.values():
                 elem = param.get_logprior(True)
                 logp += elem[0]
                 dlogp.append(elem[1])
