@@ -149,6 +149,14 @@ class Parameterized(object):
             copy.deepcopy(param, memo)
         return _deepcopy(self, memo)
 
+    def _flatten(self, rename=None):
+        rename = dict() if rename is None else rename
+        params = []
+        for name, param in self._walk_params():
+            params.append((rename.get(name, name), param))
+        self.__params = OrderedDict(params)
+        self.__kwargs = OrderedDict()
+
     def copy(self, theta=None, transform=False):
         obj = copy.deepcopy(self)
         if theta is not None:
