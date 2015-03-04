@@ -8,8 +8,8 @@ from __future__ import print_function
 
 import numpy as np
 
-from . import _distances as dist
 from .kernel import RealKernel
+from ._distances import rescale, dist, dist_foreach, diff
 from ..core.transforms import Log
 
 __all__ = ['SE']
@@ -36,14 +36,14 @@ class SE(RealKernel):
         self.ell.set_transform(Log())
 
     def get_kernel(self, X1, X2=None):
-        X1, X2 = dist.rescale(self._ell, X1, X2)
-        D = dist.dist(X1, X2)
+        X1, X2 = rescale(self._ell, X1, X2)
+        D = dist(X1, X2)
         K = self._rho * np.exp(-D/2)
         return K
 
     def get_grad(self, X1, X2=None):
-        X1, X2 = dist.rescale(self._ell, X1, X2)
-        D = dist.dist(X1, X2)
+        X1, X2 = rescale(self._ell, X1, X2)
+        D = dist(X1, X2)
         E = np.exp(-D/2)
         K = self._rho * E
 
@@ -51,7 +51,7 @@ class SE(RealKernel):
         if self._iso:
             yield K * D / self._ell             # derivative wrt ell (iso)
         else:
-            for i, D in enumerate(dist.dist_foreach(X1, X2)):
+            for i, D in enumerate(dist_foreach(X1, X2)):
                 yield K * D / self._ell[i]      # derivative wrt ell (ard)
 
     def get_dkernel(self, X1):
@@ -63,8 +63,8 @@ class SE(RealKernel):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
-        X1, X2 = dist.rescale(self._ell, X1, X2)
-        D = dist.diff(X1, X2)
+        X1, X2 = rescale(self._ell, X1, X2)
+        D = diff(X1, X2)
         K = self._rho * np.exp(-0.5 * np.sum(D**2, axis=-1))
         G = -K[:, :, None] * D / self._ell
         return G

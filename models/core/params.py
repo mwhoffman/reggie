@@ -108,6 +108,7 @@ class Parameterized(object):
     """
     def __new__(cls, *args, **kwargs):
         self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
+        # pylint: disable-msg=W0212
         self.__params = []
         self.__kwargs = []
         return self
@@ -173,6 +174,7 @@ class Parameterized(object):
                                  .format(name, ', '.join(map(str, shape))))
 
             # create a parameter instance and save quick-access to the value
+            # pylint: disable-msg=W0212
             param = Parameter(param)
             setattr(self, '_' + name, param._value)
 
@@ -182,6 +184,7 @@ class Parameterized(object):
     def _walk_params(self):
         for name, param in self.__params:
             if isinstance(param, Parameterized):
+                # pylint: disable-msg=W0212
                 for name_, param_ in param._walk_params():
                     yield name + '.' + name_, param_
             else:
@@ -191,6 +194,7 @@ class Parameterized(object):
         headers = ['name', 'value', 'prior', 'transform']
         table = []
         for name, param in self._walk_params():
+            # pylint: disable-msg=W0212
             prior = param._prior
             trans = param._transform
             prior = '-' if prior is None else str(prior)
