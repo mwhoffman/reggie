@@ -7,56 +7,43 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import scipy.spatial.distance as ssd
 
-from .kernel import Kernel
+from . import _distances as dist
+from .kernel import RealKernel
 from ..core.transforms import Log
 
 __all__ = ['SE']
 
 
-def rescale(ell, X1, X2=None):
-    X1 = (X1 / ell)
-    X2 = (X2 / ell) if (X2 is not None) else None
-    return X1, X2
-
-
-def diff(X1, X2=None):
-    X2 = X1 if (X2 is None) else X2
-    return X1[:, None, :] - X2[None, :, :]
-
-
-def dist(X1, X2=None, metric='sqeuclidean'):
-    X2 = X1 if (X2 is None) else X2
-    return ssd.cdist(X1, X2, metric)
-
-
-def dist_foreach(X1, X2=None, metric='sqeuclidean'):
-    X2 = X1 if (X2 is None) else X2
-    for i in xrange(X1.shape[1]):
-        yield ssd.cdist(X1[:, i, None], X2[:, i, None], metric)
-
-
-class SE(Kernel):
+class SE(RealKernel):
+    """
+    The squared-exponential kernel with lengthscales ell and signal variance
+    rho. If ndim is None then this will be an ARD kernel over an input space
+    whose dimensions are given by the size of ell; otherwise the kernel will be
+    isotropic and ell must be a scalar.
+    """
     def __init__(self, rho, ell, ndim=None):
-        self._register('rho', rho, ndim=0)
-        self._register('ell', ell, ndim=1 if (ndim is None) else 0)
+        self._register('rho', rho)
+        self._register('ell', ell, shape=('d',) if (ndim is None) else ())
 
-        self._ndim = self.ell.nparams if (ndim is None) else ndim
         self._iso = ndim is not None
+        self._ndim = ndim if self._iso else self.ell.nparams
+
+        if self._iso:
+            self._kwarg('ndim', self._ndim)
 
         self.rho.set_transform(Log())
         self.ell.set_transform(Log())
 
     def get_kernel(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
-        D = dist(X1, X2)
+        X1, X2 = dist.rescale(self._ell, X1, X2)
+        D = dist.dist(X1, X2)
         K = self._rho * np.exp(-D/2)
         return K
 
     def get_grad(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
-        D = dist(X1, X2)
+        X1, X2 = dist.rescale(self._ell, X1, X2)
+        D = dist.dist(X1, X2)
         E = np.exp(-D/2)
         K = self._rho * E
 
@@ -64,7 +51,7 @@ class SE(Kernel):
         if self._iso:
             yield K * D / self._ell             # derivative wrt ell (iso)
         else:
-            for i, D in enumerate(dist_foreach(X1, X2)):
+            for i, D in enumerate(dist.dist_foreach(X1, X2)):
                 yield K * D / self._ell[i]      # derivative wrt ell (ard)
 
     def get_dkernel(self, X1):
@@ -76,8 +63,8 @@ class SE(Kernel):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
-        D = diff(X1, X2)
+        X1, X2 = dist.rescale(self._ell, X1, X2)
+        D = dist.diff(X1, X2)
         K = self._rho * np.exp(-0.5 * np.sum(D**2, axis=-1))
         G = -K[:, :, None] * D / self._ell
         return G

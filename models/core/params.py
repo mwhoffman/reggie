@@ -109,11 +109,13 @@ class Parameterized(object):
     def __new__(cls, *args, **kwargs):
         self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
         self.__params = []
+        self.__kwargs = []
         return self
 
     def __repr__(self):
         typename = self.__class__.__name__
-        parts = ['{:s}={:s}'.format(n, p) for n, p in self.__params]
+        parts = self.__params + self.__kwargs
+        parts = ['{:s}={:s}'.format(n, repr(p)) for n, p in parts]
         if any(isinstance(p, Parameterized) for _, p in self.__params):
             sep = ',\n' + ' ' * (1+len(typename))
         else:
@@ -141,28 +143,34 @@ class Parameterized(object):
         """
         return sum(param.nparams for _, param in self.__params)
 
-    def _register(self, name, param, req_class=None, ndim=None):
+    def _kwarg(self, name, value):
+        self.__kwargs.append((name, value))
+
+    def _register(self, name, param, klass=None, shape=()):
         """
         Register a parameter.
         """
-        if req_class is not None and not isinstance(param, req_class):
+        if klass is not None and not isinstance(param, klass):
             raise ValueError("parameter '{:s}' must be of type {:s}"
-                             .format(name, req_class.__name__))
+                             .format(name, klass.__name__))
 
         if not isinstance(param, Parameterized):
             try:
                 # create the parameter vector
-                param = np.array(param,
-                                 dtype=float,
-                                 ndmin=(0 if ndim is None else ndim))
+                param = np.array(param, dtype=float, ndmin=len(shape))
             except (TypeError, ValueError):
                 raise ValueError("parameter '{:s}' must be array-like"
                                  .format(name))
 
             # check the size of the parameter
-            if ndim is not None and param.ndim > ndim:
-                raise ValueError("parameter '{:s}' must be {:d}-dimensional"
-                                 .format(name, ndim))
+            shapes = dict()
+            shape_ = tuple(
+                (shapes.setdefault(d, d_) if isinstance(d, str) else d)
+                for (d, d_) in zip(shape, param.shape))
+
+            if param.shape != shape_:
+                raise ValueError("parameter '{:s}' must have shape ({:s})"
+                                 .format(name, ', '.join(map(str, shape))))
 
             # create a parameter instance and save quick-access to the value
             param = Parameter(param)

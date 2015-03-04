@@ -76,7 +76,7 @@ class Model(Parameterized):
 
 
 class PosteriorModel(Model):
-    def get_posterior(self, X):
+    def get_posterior(self, X, grad=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at
         input points X.

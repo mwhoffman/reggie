@@ -8,12 +8,15 @@ from __future__ import print_function
 
 import numpy as np
 
-from .function import Function
+from .function import RealFunction
 
 __all__ = ['Zero', 'Constant']
 
 
-class Zero(Function):
+class Zero(RealFunction):
+    """
+    Function which returns zero on any input.
+    """
     def get_function(self, X):
         return np.zeros(len(X))
 
@@ -24,9 +27,12 @@ class Zero(Function):
         return np.zeros_like(X)
 
 
-class Constant(Function):
+class Constant(RealFunction):
+    """
+    Function which returns a constant value on any input.
+    """
     def __init__(self, bias=0):
-        self._register('bias', bias, ndim=0)
+        self._register('bias', bias)
 
     def get_function(self, X):
         return np.full(len(X), self._bias)

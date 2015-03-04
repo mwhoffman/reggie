@@ -27,7 +27,7 @@ class ExactGP(PosteriorModel):
         if mean is None:
             mean = Constant(0.0)
 
-        self._register('sn2', sn2, ndim=0)
+        self._register('sn2', sn2)
         self._register('kernel', kernel, Kernel)
         self._register('mean', mean, Function)
 
