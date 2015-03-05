@@ -12,8 +12,8 @@ import tabulate
 
 from collections import OrderedDict
 
-from .transforms import Transform
-from .priors import Prior
+from .transforms import TRANSFORMS
+from .priors import PRIORS
 
 __all__ = ['Parameterized']
 
@@ -83,18 +83,16 @@ class Parameter(object):
             theta = self.transform.get_inverse(theta)
         self.value.flat[:] = theta
 
-    def set_transform(self, transform):
-        if not ((transform is None) or isinstance(transform, Transform)):
-            raise ValueError('transform must be an instance of '
-                             'Transform or None')
+    def set_transform(self, transform, *args, **kwargs):
+        if transform is not None:
+            transform = TRANSFORMS[transform](*args, **kwargs)
         self.transform = transform
 
-    def set_prior(self, prior):
-        if not ((prior is None) or isinstance(prior, Prior)):
-            raise ValueError('prior must be an instance of '
-                             'Prior or None')
+    def set_prior(self, prior, *args, **kwargs):
+        if prior is not None:
+            prior = PRIORS[prior](*args, **kwargs)
+            self.value.flat[:] = prior.project(self.value)
         self.prior = prior
-        self.value.flat[:] = self.prior.project(self.value)
 
     def get_gradfactor(self):
         if self.transform is None:
@@ -246,12 +244,12 @@ class Parameterized(object):
         self.__get_param(key).set_params(theta)
         self._update()
 
-    def set_prior(self, key, prior):
-        self.__get_param(key).set_prior(prior)
+    def set_prior(self, key, prior, *args, **kwargs):
+        self.__get_param(key).set_prior(prior, *args, **kwargs)
         self._update()
 
-    def set_transform(self, key, transform):
-        self.__get_param(key).set_transform(transform)
+    def set_transform(self, key, transform, *args, **kwargs):
+        self.__get_param(key).set_transform(transform, *args, **kwargs)
 
     def set_params(self, theta, transform=False):
         """

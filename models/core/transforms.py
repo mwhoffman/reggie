@@ -50,3 +50,9 @@ class Log(Transform):
 
     def get_inverse(self, t):
         return np.exp(t)
+
+
+# get a dictionary mapping a string to each transform
+TRANSFORMS = dict()
+for _ in __all__:
+    TRANSFORMS[_.lower()] = globals()[_]

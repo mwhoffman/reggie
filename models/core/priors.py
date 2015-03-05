@@ -10,7 +10,7 @@ import numpy as np
 
 from mwhutils.random import rstate
 
-__all__ = []
+__all__ = ['Uniform']
 
 
 def _repr(obj, *args, **kwargs):
@@ -64,3 +64,9 @@ class Uniform(Prior):
         else:
             logp = 0.0
         return (logp, np.zeros_like(theta)) if grad else logp
+
+
+# get a dictionary mapping a string to each prior
+PRIORS = dict()
+for _ in __all__:
+    PRIORS[_.lower()] = globals()[_]
