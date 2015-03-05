@@ -319,3 +319,13 @@ class Parameterized(object):
                                               bounds.T)).T
                     support.extend(map(tuple, bounds))
         return support
+
+    def get_names(self):
+        names = []
+        for name, param in self.__walk_params():
+            if param.nparams == 1:
+                names.append(name)
+            else:
+                names.extend('{:s}_{:d}'.format(name, n)
+                             for n in xrange(param.nparams))
+        return names

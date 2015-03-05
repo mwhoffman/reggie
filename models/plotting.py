@@ -14,8 +14,24 @@ from .core.models import PosteriorModel
 __all__ = ['plot_posterior']
 
 
-def plot_posterior(model, xmin=None, xmax=None, data=True, draw=True,
-                   despine=False):
+def _figure(fig, draw=True):
+    fig.tight_layout()
+    if draw:
+        fig.canvas.draw()
+    return fig
+
+
+def _axis(ax, despine=True, draw=True):
+    ax.axis('tight')
+    if despine:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+    if draw:
+        ax.figure.canvas.draw()
+    return ax
+
+
+def plot_posterior(model, xmin=None, xmax=None, data=True, **kwargs):
     """
     Plot the marginal distribution of the given one-dimensional posterior
     model.
@@ -41,12 +57,13 @@ def plot_posterior(model, xmin=None, xmax=None, data=True, draw=True,
     hi = mu + 2 * np.sqrt(s2)
 
     # get the axes.
-    ax = pl.gca()
-    ax.cla()
-
     lw = 2
     ls = '-'
     alpha = 0.25
+
+    # get the axis
+    ax = pl.gca()
+    ax.cla()
 
     # plot the mean
     lines = ax.plot(x, mu, lw=lw, ls=ls, label='mean')
@@ -60,11 +77,29 @@ def plot_posterior(model, xmin=None, xmax=None, data=True, draw=True,
         ax.scatter(X.ravel(), Y, zorder=5, marker='o', s=30, lw=1,
                    facecolors='none', label='data')
 
-    ax.axis('tight')
+    # complete the axis
+    _axis(ax, **kwargs)
 
-    if despine:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
 
-    if draw:
-        ax.figure.canvas.draw()
+def plot_chain(samples, names=None, **kwargs):
+    samples = samples - np.min(samples, axis=0)
+    samples /= np.max(samples, axis=0)
+
+    d = samples.shape[1]
+
+    fig = pl.gcf()
+    fig.clf()
+    draw = kwargs.pop('draw', True)
+
+    for i in xrange(d):
+        ax = fig.add_subplot(d, 1, i+1)
+        ax.plot(samples[:, i])
+        ax.set_yticklabels([])
+        if names is not None:
+            ax.set_ylabel(names[i])
+        if i < d-1:
+            ax.set_xticklabels([])
+        ax = _axis(ax, draw=False, **kwargs)
+
+    # complete the figure
+    _figure(fig, draw)

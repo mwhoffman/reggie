@@ -34,16 +34,16 @@ def slice_sample(model,
     # this computes the new model (ie statistics) and its probability
     def get_logprob(z):
         model_ = model.copy(theta0 + direction*z, True)
-        logp0, _ = model_.get_logprior()
-        logp1, _ = model_.get_loglike()
+        logp0 = model_.get_logprior()
+        logp1 = model_.get_loglike()
         return logp0 + logp1, model_
 
     upper = sigma*rng.rand()
     lower = upper - sigma
 
     logprob0 = np.log(rng.rand())
-    logprob0 += model.get_logprior()[0]
-    logprob0 += model.get_loglike()[0]
+    logprob0 += model.get_logprior()
+    logprob0 += model.get_loglike()
 
     if step_out:
         for _ in xrange(max_steps_out):
@@ -72,12 +72,12 @@ def slice_sample(model,
     return model_
 
 
-def sample(model, n, raw=False, rng=None):
+def sample(model, n, raw=False, transform=False, rng=None):
     rng = rstate(rng)
     models = []
     models.append(slice_sample(model))
     for _ in xrange(n-1):
         models.append(slice_sample(models[-1]))
     if raw:
-        models = np.array([_.get_params() for _ in models])
+        models = np.array([_.get_params(transform) for _ in models])
     return models
