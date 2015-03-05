@@ -215,7 +215,8 @@ class Parameterized(object):
             # save the parameter
             self.__params[name] = Parameter(param, None, transform)
 
-        # save the parameter
+        # return either the value of a Parameter instance or the Parameterized
+        # object so that it can be used by the actual model
         return param
 
     def _update(self):
@@ -229,7 +230,7 @@ class Parameterized(object):
         """
         Return the number of parameters for this object.
         """
-        return sum(param.nparams for param in self.__params.values())
+        return sum(param.nparams for _, param in self.__walk_params())
 
     def describe(self):
         headers = ['name', 'value', 'prior', 'transform']
@@ -251,16 +252,6 @@ class Parameterized(object):
     def set_transform(self, key, transform):
         self.__get_param(key).set_transform(transform)
 
-    def get_params(self, transform=False):
-        """
-        Return a flattened vector consisting of the parameters for the object.
-        """
-        if self.nparams == 0:
-            return np.array([])
-        else:
-            return np.hstack(param.get_params(transform)
-                             for param in self.__params.values())
-
     def set_params(self, theta, transform=False):
         """
         Given a parameter vector of the appropriate size, assign the values of
@@ -270,17 +261,28 @@ class Parameterized(object):
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
         a = 0
-        for param in self.__params.values():
+        for _, param in self.__walk_params():
             b = a + param.nparams
             param.set_params(theta[a:b], transform)
             a = b
+        self._update()
+
+    def get_params(self, transform=False):
+        """
+        Return a flattened vector consisting of the parameters for the object.
+        """
+        if self.nparams == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.get_params(transform)
+                             for _, param in self.__walk_params())
 
     def get_gradfactor(self):
         if self.nparams == 0:
             return np.array([])
         else:
             return np.hstack(param.get_gradfactor()
-                             for param in self.__params.values())
+                             for _, param in self.__walk_params())
 
     def get_logprior(self, grad=False):
         """
@@ -289,7 +291,7 @@ class Parameterized(object):
         """
         if not grad:
             return sum(param.get_logprior(False)
-                       for param in self.__params.values())
+                       for _, param in self.__walk_params())
 
         elif self.nparams == 0:
             return 0, np.array([])
@@ -297,8 +299,23 @@ class Parameterized(object):
         else:
             logp = 0.0
             dlogp = []
-            for param in self.__params.values():
+            for _, param in self.__walk_params():
                 elem = param.get_logprior(True)
                 logp += elem[0]
                 dlogp.append(elem[1])
             return logp, np.hstack(dlogp)
+
+    def get_support(self, transform=False):
+        support = None
+        if self.nparams > 0:
+            support = []
+            for _, param in self.__walk_params():
+                if param.prior is None or not hasattr(param.prior, 'bounds'):
+                    support.extend([(None, None)] * param.nparams)
+                else:
+                    bounds = param.prior.bounds
+                    if transform and param.transform is not None:
+                        bounds = np.array(map(param.transform.get_transform,
+                                              bounds.T)).T
+                    support.extend(map(tuple, bounds))
+        return support

@@ -35,7 +35,9 @@ def optimize(model):
         return logp, dlogp
 
     # optimize the model
-    theta, _, _ = so.fmin_l_bfgs_b(objective, model.get_params(True))
+    theta, _, _ = so.fmin_l_bfgs_b(func=objective,
+                                   x0=model.get_params(True),
+                                   bounds=model.get_support(True))
 
     # make sure that the model is using the correct hypers
     model.set_params(theta, True)

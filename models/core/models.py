@@ -31,10 +31,6 @@ class Model(Parameterized):
     def data(self):
         return (self._X, self._Y)
 
-    @property
-    def bounds(self):
-        return zip(self._X.min(axis=0), self._X.max(axis=0))
-
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.
@@ -59,11 +55,6 @@ class Model(Parameterized):
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
         else:
             return self._get_loglike(grad)
-
-    def set_params(self, theta, transform=False):
-        super(Model, self).set_params(theta, transform)
-        if self.ndata > 0:
-            self._update()
 
     def _get_loglike(self, grad=False):
         raise NotImplementedError
