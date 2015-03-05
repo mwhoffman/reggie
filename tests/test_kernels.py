@@ -61,8 +61,8 @@ class KernelTest(object):
 class RealKernelTest(KernelTest):
     def __init__(self, kernel):
         rng = np.random.RandomState(0)
-        X1 = rng.rand(5, kernel._ndim)
-        X2 = rng.rand(3, kernel._ndim)
+        X1 = rng.rand(5, kernel.ndim)
+        X2 = rng.rand(3, kernel.ndim)
         super(RealKernelTest, self).__init__(kernel, X1, X2)
 
 
