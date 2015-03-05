@@ -40,11 +40,12 @@ class Parameter(object):
     """
     Representation of a parameter vector.
     """
-    def __init__(self, value, prior=None, transform=None):
+    def __init__(self, value, transform=None, prior=None, block=0):
         self.nparams = value.size
         self.value = value
-        self.prior = prior
         self.transform = transform
+        self.prior = prior
+        self.block = block
 
     def __repr__(self):
         if self.value.shape == ():
@@ -213,7 +214,7 @@ class Parameterized(object):
                                  .format(name, ', '.join(map(str, shape))))
 
             # save the parameter
-            self.__params[name] = Parameter(param, None, transform)
+            self.__params[name] = Parameter(param, transform)
 
         # return either the value of a Parameter instance or the Parameterized
         # object so that it can be used by the actual model
@@ -233,13 +234,13 @@ class Parameterized(object):
         return sum(param.nparams for _, param in self.__walk_params())
 
     def describe(self):
-        headers = ['name', 'value', 'prior', 'transform']
+        headers = ['name', 'value', 'transform', 'prior', 'block']
         table = []
         for name, param in self.__walk_params():
-            prior = '-' if param.prior is None else str(param.prior)
             trans = '-' if param.transform is None else str(param.transform)
-            table.append([name, str(param), prior, trans])
-        print(tabulate.tabulate(table, headers))
+            prior = '-' if param.prior is None else str(param.prior)
+            table.append([name, str(param), trans, prior, param.block])
+        print(tabulate.tabulate(table, headers, numalign=None))
 
     def set_param(self, key, theta):
         self.__get_param(key).set_params(theta)
