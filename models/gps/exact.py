@@ -9,8 +9,8 @@ from __future__ import print_function
 import numpy as np
 import scipy.linalg as sla
 
-from ..kernels import Kernel
-from ..functions import Function, Constant
+from ..kernels.kernel import Kernel
+from ..functions.function import Function
 from ..core.models import PosteriorModel
 from ..core.transforms import Log
 
@@ -23,10 +23,7 @@ class ExactGP(PosteriorModel):
     """
     Implementation of exact GP inference.
     """
-    def __init__(self, sn2, kernel, mean=None):
-        if mean is None:
-            mean = Constant(0.0)
-
+    def __init__(self, sn2, kernel, mean):
         self._sn2 = self._register('sn2', sn2, transform=Log())
         self._kernel = self._register('kernel', kernel, Kernel)
         self._mean = self._register('mean', mean, Function)
