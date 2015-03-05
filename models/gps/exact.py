@@ -36,14 +36,21 @@ class ExactGP(PosteriorModel):
         self._a = None
 
     def _update(self):
-        K = self._kernel.get_kernel(self._X)
-        K = K + self._sn2 * np.eye(len(self._X))
-        r = self._Y - self._mean.get_function(self._X)
+        if self.ndata > 0:
+            K = self._kernel.get_kernel(self._X)
+            K = K + self._sn2 * np.eye(len(self._X))
+            r = self._Y - self._mean.get_function(self._X)
+            self._R = sla.cholesky(K)
+            self._a = sla.solve_triangular(self._R, r, trans=True)
 
-        self._R = sla.cholesky(K)
-        self._a = sla.solve_triangular(self._R, r, trans=True)
+        else:
+            self._R = None
+            self._a = None
 
-    def _get_loglike(self, grad=False):
+    def get_loglike(self, grad=False):
+        if self.ndata == 0:
+            return (0.0, np.zeros(self.nparams)) if grad else 0.0
+
         lZ = -0.5 * np.inner(self._a, self._a)
         lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
         lZ -= np.sum(np.log(self._R.diagonal()))
@@ -74,7 +81,7 @@ class ExactGP(PosteriorModel):
         mu = self._mean.get_function(X)
         s2 = self._kernel.get_dkernel(X)
 
-        if self._X is not None:
+        if self.ndata > 0:
             K = self._kernel.get_kernel(self._X, X)
             RK = sla.solve_triangular(self._R, K, trans=True)
 
@@ -94,7 +101,7 @@ class ExactGP(PosteriorModel):
         # NOTE: the above assumes a constant mean and stationary kernel (which
         # we satisfy, but should we change either assumption...).
 
-        if self._X is not None:
+        if self.ndata > 0:
             dK = np.rollaxis(self._kernel.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 

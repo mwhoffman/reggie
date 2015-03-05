@@ -31,6 +31,17 @@ class Model(Parameterized):
     def data(self):
         return (self._X, self._Y)
 
+    def reset(self):
+        self._X = None
+        self._Y = None
+        self._update()
+
+    def copy(self, theta=None, transform=False, reset=False):
+        obj = super(Model, self).copy(theta, transform)
+        if reset:
+            obj.reset()
+        return obj
+
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.
@@ -51,12 +62,9 @@ class Model(Parameterized):
             self._update()
 
     def get_loglike(self, grad=False):
-        if self.ndata == 0:
-            return (0.0, np.zeros(self.nparams)) if grad else 0.0
-        else:
-            return self._get_loglike(grad)
-
-    def _get_loglike(self, grad=False):
+        """
+        Get the log-likelihood of the model (and its gradient if requested).
+        """
         raise NotImplementedError
 
 
