@@ -14,7 +14,13 @@ from .core.models import PosteriorModel
 __all__ = ['plot_posterior']
 
 
-def plot_posterior(model, draw=True, xmin=None, xmax=None):
+def plot_posterior(model, xmin=None, xmax=None, data=True, draw=True,
+                   despine=False):
+    """
+    Plot the marginal distribution of the given one-dimensional posterior
+    model.
+    """
+
     if not isinstance(model, PosteriorModel):
         raise ValueError('model must be a PosteriorModel instance')
 
@@ -25,8 +31,8 @@ def plot_posterior(model, draw=True, xmin=None, xmax=None):
     X, Y = model.data
 
     # get the input points
-    xmin = X[:, 0].min() if (xmin is None) else xmin
-    xmax = X[:, 0].max() if (xmax is None) else xmax
+    xmin = np.min(X) if (xmin is None) else xmin
+    xmax = np.max(X) if (xmax is None) else xmax
     x = np.linspace(xmin, xmax, 500)
 
     # get the posterior mean and confidence bands
@@ -40,16 +46,25 @@ def plot_posterior(model, draw=True, xmin=None, xmax=None):
 
     lw = 2
     ls = '-'
-    color = next(ax._get_lines.color_cycle)
     alpha = 0.25
 
+    # plot the mean
+    lines = ax.plot(x, mu, lw=lw, ls=ls, label='mean')
+    color = lines[0].get_color()
+
+    # plot error bars
     ax.fill_between(x, lo, hi, color=color, alpha=alpha)
-    ax.plot(x, mu, lw=lw, ls=ls, color=color, label='mean')
     ax.plot([], [], lw=10, color=color, alpha=alpha, label='uncertainty')
-    ax.scatter(X.ravel(), Y,
-               marker='o', s=30, lw=1, facecolors='none', label='data')
+
+    if data:
+        ax.scatter(X.ravel(), Y, zorder=5, marker='o', s=30, lw=1,
+                   facecolors='none', label='data')
 
     ax.axis('tight')
+
+    if despine:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
     if draw:
         ax.figure.canvas.draw()
