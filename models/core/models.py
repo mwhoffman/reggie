@@ -65,13 +65,6 @@ class Model(Parameterized):
         if self.ndata > 0:
             self._update()
 
-    def _update(self):
-        """
-        Update any internal parameters (ie sufficient statistics) given the
-        entire set of current data.
-        """
-        pass
-
     def _get_loglike(self, grad=False):
         raise NotImplementedError
 

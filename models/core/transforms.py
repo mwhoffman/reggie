@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+from .priors import _repr
 
 __all__ = ['Log']
 
@@ -38,6 +39,9 @@ class Transform(object):
 
 
 class Log(Transform):
+    def __repr__(self):
+        return _repr(self)
+
     def get_transform(self, x):
         return np.log(x)
 

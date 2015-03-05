@@ -13,6 +13,7 @@ import tabulate
 from collections import OrderedDict
 
 from .transforms import Transform
+from .priors import Prior
 
 __all__ = ['Parameterized']
 
@@ -41,17 +42,17 @@ class Parameter(object):
     """
     def __init__(self, value, prior=None, transform=None):
         self.nparams = value.size
-        self._value = value
-        self._prior = prior
-        self._transform = transform
+        self.value = value
+        self.prior = prior
+        self.transform = transform
 
     def __repr__(self):
-        if self._value.shape == ():
-            return np.array2string(self._value.ravel(),
+        if self.value.shape == ():
+            return np.array2string(self.value.ravel(),
                                    precision=PRECISION,
                                    suppress_small=True)[1:-1].strip()
         else:
-            return np.array2string(self._value,
+            return np.array2string(self.value,
                                    separator=',',
                                    precision=PRECISION,
                                    suppress_small=True)
@@ -59,7 +60,7 @@ class Parameter(object):
     def __deepcopy__(self, memo):
         # this gets around a bug where copy.deepcopy(array) does not return an
         # array when called on a 0-dimensional object.
-        memo[id(self._value)] = self._value.copy()
+        memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
 
     def copy(self, theta=None, transform=False):
@@ -70,27 +71,35 @@ class Parameter(object):
 
     def get_params(self, transform=False):
         """Return the parameters."""
-        if transform and self._transform is not None:
-            return self._transform.get_transform(self._value)
+        if transform and self.transform is not None:
+            return self.transform.get_transform(self.value)
         else:
-            return self._value.copy()
+            return self.value.copy()
 
     def set_params(self, theta, transform=False):
         """Set the parameters."""
-        if transform and self._transform is not None:
-            theta = self._transform.get_inverse(theta)
-        self._value.flat[:] = theta
+        if transform and self.transform is not None:
+            theta = self.transform.get_inverse(theta)
+        self.value.flat[:] = theta
 
     def set_transform(self, transform):
         if not ((transform is None) or isinstance(transform, Transform)):
-            raise ValueError('transform must be an instance of Transform')
-        self._transform = transform
+            raise ValueError('transform must be an instance of '
+                             'Transform or None')
+        self.transform = transform
+
+    def set_prior(self, prior):
+        if not ((prior is None) or isinstance(prior, Prior)):
+            raise ValueError('prior must be an instance of '
+                             'Prior or None')
+        self.prior = prior
+        self.value.flat[:] = self.prior.project(self.value)
 
     def get_gradfactor(self):
-        if self._transform is None:
+        if self.transform is None:
             return np.ones(self.nparams)
         else:
-            return self._transform.get_gradfactor(self._value)
+            return self.transform.get_gradfactor(self.value)
 
     def get_logprior(self, grad=False):
         """
@@ -98,10 +107,10 @@ class Parameter(object):
         vector. Also if requested return the gradient of this probability with
         respect to the parameter values.
         """
-        if self._prior is None:
-            return (0.0, np.zeros_like(self._value.ravel())) if grad else 0.0
+        if self.prior is None:
+            return (0.0, np.zeros_like(self.value.ravel())) if grad else 0.0
         else:
-            return self._prior.get_logprior(self._value.ravel(), grad)
+            return self.prior.get_logprior(self.value.ravel(), grad)
 
 
 class Parameterized(object):
@@ -125,7 +134,15 @@ class Parameterized(object):
             sep = ', '
         return typename + '(' + sep.join(parts) + ')'
 
-    def __getitem__(self, key):
+    def __deepcopy__(self, memo):
+        # populate the memo with our param values so that these get copied
+        # first. this is in order to work around the 0-dimensional array bug
+        # noted in Parameter.
+        for param in self.__params.values():
+            copy.deepcopy(param, memo)
+        return _deepcopy(self, memo)
+
+    def __get_param(self, key):
         node = self
         try:
             for part in key.split('.'):
@@ -137,25 +154,14 @@ class Parameterized(object):
             raise ValueError('Unknown parameter: {:s}'.format(key))
         return node
 
-    def __setitem__(self, key, value):
-        node = self[key]
-        node.set_params(value)
-
-    def __deepcopy__(self, memo):
-        # populate the memo with our param values so that these get copied
-        # first. this is in order to work around the 0-dimensional array bug
-        # noted in Parameter.
-        for param in self.__params.values():
-            copy.deepcopy(param, memo)
-        return _deepcopy(self, memo)
-
-    def _flatten(self, rename=None):
-        rename = dict() if rename is None else rename
-        params = []
-        for name, param in self._walk_params():
-            params.append((rename.get(name, name), param))
-        self.__params = OrderedDict(params)
-        self.__kwargs = OrderedDict()
+    def __walk_params(self):
+        for name, param in self.__params.items():
+            if isinstance(param, Parameterized):
+                # pylint: disable=W0212
+                for name_, param_ in param.__walk_params():
+                    yield name + '.' + name_, param_
+            else:
+                yield name, param
 
     def copy(self, theta=None, transform=False):
         obj = copy.deepcopy(self)
@@ -163,12 +169,13 @@ class Parameterized(object):
             obj.set_params(theta, transform)
         return obj
 
-    @property
-    def nparams(self):
-        """
-        Return the number of parameters for this object.
-        """
-        return sum(param.nparams for param in self.__params.values())
+    def _flatten(self, rename=None):
+        rename = dict() if rename is None else rename
+        params = []
+        for name, param in self.__walk_params():
+            params.append((rename.get(name, name), param))
+        self.__params = OrderedDict(params)
+        self.__kwargs = OrderedDict()
 
     def _kwarg(self, name, value, default=None):
         if value != default:
@@ -211,26 +218,38 @@ class Parameterized(object):
         # save the parameter
         return param
 
-    def _walk_params(self):
-        for name, param in self.__params.items():
-            if isinstance(param, Parameterized):
-                # pylint: disable=W0212
-                for name_, param_ in param._walk_params():
-                    yield name + '.' + name_, param_
-            else:
-                yield name, param
+    def _update(self):
+        """
+        Update any internal parameters (sufficient statistics, etc.).
+        """
+        pass
+
+    @property
+    def nparams(self):
+        """
+        Return the number of parameters for this object.
+        """
+        return sum(param.nparams for param in self.__params.values())
 
     def describe(self):
         headers = ['name', 'value', 'prior', 'transform']
         table = []
-        for name, param in self._walk_params():
-            # pylint: disable=W0212
-            prior = param._prior
-            trans = param._transform
-            prior = '-' if prior is None else str(prior)
-            trans = '-' if trans is None else type(trans).__name__
+        for name, param in self.__walk_params():
+            prior = '-' if param.prior is None else str(param.prior)
+            trans = '-' if param.transform is None else str(param.transform)
             table.append([name, str(param), prior, trans])
         print(tabulate.tabulate(table, headers))
+
+    def set_param(self, key, theta):
+        self.__get_param(key).set_params(theta)
+        self._update()
+
+    def set_prior(self, key, prior):
+        self.__get_param(key).set_prior(prior)
+        self._update()
+
+    def set_transform(self, key, transform):
+        self.__get_param(key).set_transform(transform)
 
     def get_params(self, transform=False):
         """
