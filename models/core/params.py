@@ -189,13 +189,16 @@ class Parameterized(object):
                              .format(name, klass.__name__))
 
         if isinstance(param, Parameterized):
-            # save the parameterized object
+            # copy the parameterized object and store it.
+            param = param.copy()
             self.__params[name] = param
 
         else:
             try:
                 # create the parameter vector
-                param = np.array(param, dtype=float, ndmin=len(shape))
+                ndmin = len(shape)
+                param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
+
             except (TypeError, ValueError):
                 raise ValueError("parameter '{:s}' must be array-like"
                                  .format(name))

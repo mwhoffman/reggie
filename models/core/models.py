@@ -36,6 +36,12 @@ class Model(Parameterized):
         self._Y = None
         self._update()
 
+    def __deepcopy__(self, memo):
+        # don't make a copy of the data.
+        memo[id(self._X)] = self._X
+        memo[id(self._Y)] = self._Y
+        return super(Model, self).__deepcopy__(memo)
+
     def copy(self, theta=None, transform=False, reset=False):
         obj = super(Model, self).copy(theta, transform)
         if reset:
@@ -69,7 +75,7 @@ class Model(Parameterized):
 
 
 class PosteriorModel(Model):
-    def get_posterior(self, X, grad=False):
+    def get_posterior(self, X, grad=False, predictive=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at
         input points X.

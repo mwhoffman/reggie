@@ -73,7 +73,7 @@ class ExactGP(PosteriorModel):
 
         return lZ, dlZ
 
-    def get_posterior(self, X, grad=False):
+    def get_posterior(self, X, grad=False, predictive=False):
         # grab the prior mean and variance.
         mu = self._mean.get_function(X)
         s2 = self._kernel.get_dkernel(X)
@@ -87,6 +87,9 @@ class ExactGP(PosteriorModel):
             # prior variance.
             mu += np.dot(RK.T, self._a)
             s2 -= np.sum(RK**2, axis=0)
+
+        if predictive:
+            s2 += self._sn2
 
         if not grad:
             return mu, s2
