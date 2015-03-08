@@ -9,6 +9,7 @@ from __future__ import print_function
 import numpy as np
 
 from .params import Parameterized
+from ..learning import optimize
 
 __all__ = ['Model']
 
@@ -72,6 +73,9 @@ class Model(Parameterized):
         Get the log-likelihood of the model (and its gradient if requested).
         """
         raise NotImplementedError
+
+    def optimize(self):
+        optimize(self)
 
 
 class PosteriorModel(Model):
