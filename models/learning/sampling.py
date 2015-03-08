@@ -21,6 +21,7 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
     rng = rstate(rng)
     support = model.get_support()
     theta0 = model.get_params()
+    logp0 = model.get_logprior() + model.get_loglike()
 
     def get_logp(theta):
         # Updates the new model (ie computing its sufficient statistics) and
@@ -33,8 +34,6 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
             logp = model_.get_logprior() + model_.get_loglike()
         return model_, logp
 
-    logp0 = model.get_logprior() + model.get_loglike()
-
     for block in model.get_blocks():
         # sample a random direction
         direction = np.zeros_like(theta0)
@@ -43,15 +42,15 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
 
         upper = sigma*rng.rand()
         lower = upper - sigma
-        logp0 += np.log(rng.rand())
+        alpha = np.log(rng.rand())
 
         for _ in xrange(max_steps):
-            if get_logp(theta0 + direction*lower)[1] <= logp0:
+            if get_logp(theta0 + direction*lower)[1] <= logp0 + alpha:
                 break
             lower -= sigma
 
         for _ in xrange(max_steps):
-            if get_logp(theta0 + direction*upper)[1] <= logp0:
+            if get_logp(theta0 + direction*upper)[1] <= logp0 + alpha:
                 break
             upper += sigma
 
@@ -59,7 +58,7 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
             z = (upper - lower)*rng.rand() + lower
             theta = theta0 + direction*z
             model_, logp = get_logp(theta)
-            if logp > logp0:
+            if logp > logp0 + alpha:
                 break
             elif z < 0:
                 lower = z
