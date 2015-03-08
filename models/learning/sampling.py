@@ -25,42 +25,43 @@ def slice_sample(model,
     rng = rstate(rng)
 
     # get the initial parameter assignments
-    theta0 = model.get_params(True)
+    theta0 = model.get_params()
+    support = model.get_support()
 
     # sample a random direction
     direction = rng.randn(theta0.shape[0])
     direction /= np.sqrt(np.sum(direction**2))
 
-    # this computes the new model (ie statistics) and its probability
-    def get_logprob(z):
-        model_ = model.copy(theta0 + direction*z, True)
-        logp0 = model_.get_logprior()
-        logp1 = model_.get_loglike()
-        return logp0 + logp1, model_
+    # this updates the new model (ie computing its sufficient statistics) and
+    # returns the posterior probability and the model itself.
+    def get_logp(z):
+        theta = theta0 + direction*z
+        if np.any(theta < support[:, 0]) or np.any(theta > support[:, 1]):
+            model_ = None
+            logp = -np.inf
+        else:
+            model_ = model.copy(theta)
+            logp = model_.get_logprior() + model_.get_loglike()
+        return model_, logp
 
     upper = sigma*rng.rand()
     lower = upper - sigma
-
-    logprob0 = np.log(rng.rand())
-    logprob0 += model.get_logprior()
-    logprob0 += model.get_loglike()
+    logp0 = np.log(rng.rand()) + model.get_logprior() + model.get_loglike()
 
     if step_out:
         for _ in xrange(max_steps_out):
-            if get_logprob(lower)[0] <= logprob0:
+            if get_logp(lower)[1] <= logp0:
                 break
             lower -= sigma
         for _ in xrange(max_steps_out):
-            if get_logprob(upper)[0] <= logprob0:
+            if get_logp(upper)[1] <= logp0:
                 break
             upper += sigma
 
     while True:
         z = (upper - lower)*rng.rand() + lower
-        logprob, model_ = get_logprob(z)
-        if np.isnan(logprob):
-            raise Exception("Slice sampler got a NaN")
-        if logprob > logprob0:
+        model_, logp = get_logp(z)
+        if logp > logp0:
             break
         elif z < 0:
             lower = z
@@ -72,12 +73,12 @@ def slice_sample(model,
     return model_
 
 
-def sample(model, n, raw=False, transform=False, rng=None):
+def sample(model, n, raw=False, rng=None):
     rng = rstate(rng)
     models = []
     models.append(slice_sample(model))
     for _ in xrange(n-1):
         models.append(slice_sample(models[-1]))
     if raw:
-        models = np.array([_.get_params(transform) for _ in models])
+        models = np.array([_.get_params() for _ in models])
     return models
