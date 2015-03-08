@@ -321,6 +321,15 @@ class Parameterized(object):
             a = b
         return support
 
+    def get_blocks(self):
+        blocks = dict()
+        a = 0
+        for _, param in self.__walk_params():
+            b = a + param.nparams
+            blocks.setdefault(param.block, []).extend(range(a, b))
+            a = b
+        return blocks.values()
+
     def get_names(self):
         names = []
         for name, param in self.__walk_params():
