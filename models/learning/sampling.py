@@ -33,35 +33,44 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
             logp = model_.get_logprior() + model_.get_loglike()
         return model_, logp
 
-    # sample a random direction
-    direction = rng.randn(theta0.shape[0])
-    direction /= np.sqrt(np.sum(direction**2))
+    logp0 = model.get_logprior() + model.get_loglike()
 
-    upper = sigma*rng.rand()
-    lower = upper - sigma
-    logp0 = np.log(rng.rand()) + model.get_logprior() + model.get_loglike()
+    for block in model.get_blocks():
+        # sample a random direction
+        direction = np.zeros_like(theta0)
+        direction[block] = rng.randn(len(block))
+        direction /= np.sqrt(np.sum(direction**2))
 
-    for _ in xrange(max_steps):
-        if get_logp(theta0 + direction*lower)[1] <= logp0:
-            break
-        lower -= sigma
+        upper = sigma*rng.rand()
+        lower = upper - sigma
+        logp0 += np.log(rng.rand())
 
-    for _ in xrange(max_steps):
-        if get_logp(theta0 + direction*upper)[1] <= logp0:
-            break
-        upper += sigma
+        for _ in xrange(max_steps):
+            if get_logp(theta0 + direction*lower)[1] <= logp0:
+                break
+            lower -= sigma
 
-    while True:
-        z = (upper - lower)*rng.rand() + lower
-        model_, logp = get_logp(theta0 + direction*z)
-        if logp > logp0:
-            break
-        elif z < 0:
-            lower = z
-        elif z > 0:
-            upper = z
-        else:
-            raise RuntimeError("Slice sampler shrank to zero!")
+        for _ in xrange(max_steps):
+            if get_logp(theta0 + direction*upper)[1] <= logp0:
+                break
+            upper += sigma
+
+        while True:
+            z = (upper - lower)*rng.rand() + lower
+            theta = theta0 + direction*z
+            model_, logp = get_logp(theta)
+            if logp > logp0:
+                break
+            elif z < 0:
+                lower = z
+            elif z > 0:
+                upper = z
+            else:
+                raise RuntimeError("Slice sampler shrank to zero!")
+
+        # make sure to update our starting point
+        theta0 = theta
+        logp0 = logp
 
     return model_
 

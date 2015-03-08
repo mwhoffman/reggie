@@ -254,6 +254,9 @@ class Parameterized(object):
     def set_transform(self, key, transform, *args, **kwargs):
         self.__get_param(key).set_transform(transform, *args, **kwargs)
 
+    def set_block(self, key, block):
+        self.__get_param(key).block = block
+
     def set_params(self, theta, transform=False):
         """
         Given a parameter vector of the appropriate size, assign the values of

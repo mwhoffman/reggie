@@ -20,12 +20,15 @@ if __name__ == '__main__':
     gp.set_prior('ell', 'uniform', 0.001, 1)
     gp.set_prior('mean', 'uniform', -3, 3)
 
+    gp.set_block('rho', 1)
+    gp.set_block('mean', 2)
+
     # add data and optimize
     gp.add_data(data['X'], data['y'])
     gp.optimize()
 
     # sample hyperparameters
-    mcmc = models.learning.MetaMCMC(gp, n=1000, rng=0)
+    mcmc = models.learning.MetaMCMC(gp, n=1000, rng=None)
 
     # optimize and plot
     pl.figure(1)
