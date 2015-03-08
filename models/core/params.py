@@ -308,18 +308,17 @@ class Parameterized(object):
             return logp, np.hstack(dlogp)
 
     def get_support(self, transform=False):
-        support = None
-        if self.nparams > 0:
-            support = []
-            for _, param in self.__walk_params():
-                if param.prior is None or not hasattr(param.prior, 'bounds'):
-                    support.extend([(None, None)] * param.nparams)
+        support = np.tile((-np.inf, np.inf), (self.nparams, 1))
+        a = 0
+        for _, param in self.__walk_params():
+            b = a + param.nparams
+            if param.prior is not None and hasattr(param.prior, 'bounds'):
+                if transform and param.transform is not None:
+                    support[a:b] = np.array(map(param.transform.get_transform,
+                                                param.prior.bounds.T)).T
                 else:
-                    bounds = param.prior.bounds
-                    if transform and param.transform is not None:
-                        bounds = np.array(map(param.transform.get_transform,
-                                              bounds.T)).T
-                    support.extend(map(tuple, bounds))
+                    support[a:b] = param.prior.bounds
+            a = b
         return support
 
     def get_names(self):

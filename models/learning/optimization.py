@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 
+import numpy as np
 import scipy.optimize as so
 
 __all__ = ['optimize']
@@ -34,10 +35,17 @@ def optimize(model):
 
         return logp, dlogp
 
+    # get rid of any infinite bounds.
+    bounds = model.get_support(True)
+    isinf = np.isinf(bounds)
+    bounds = np.array(bounds, dtype=object)
+    bounds[isinf] = None
+    bounds = map(tuple, bounds)
+
     # optimize the model
     theta, _, _ = so.fmin_l_bfgs_b(func=objective,
                                    x0=model.get_params(True),
-                                   bounds=model.get_support(True))
+                                   bounds=bounds)
 
     # make sure that the model is using the correct hypers
     model.set_params(theta, True)
