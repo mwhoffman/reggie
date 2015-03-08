@@ -12,6 +12,9 @@ from .priors import _repr
 __all__ = ['Log']
 
 
+epsilon = np.finfo(np.float64).resolution
+
+
 class Transform(object):
     """
     Interface for parameter transformations.
@@ -49,7 +52,7 @@ class Log(Transform):
         return x.copy()
 
     def get_inverse(self, t):
-        return np.exp(t)
+        return np.clip(np.exp(t), epsilon, np.inf)
 
 
 # get a dictionary mapping a string to each transform
