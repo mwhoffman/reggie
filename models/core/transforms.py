@@ -7,12 +7,13 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-from .priors import _repr
+
+from ..utils.pretty import repr_args
 
 __all__ = ['Log']
 
 
-epsilon = np.finfo(np.float64).resolution
+EPSILON = np.finfo(np.float64).resolution
 
 
 class Transform(object):
@@ -43,7 +44,7 @@ class Transform(object):
 
 class Log(Transform):
     def __repr__(self):
-        return _repr(self)
+        return repr_args(self)
 
     def get_transform(self, x):
         return np.log(x)
@@ -52,7 +53,7 @@ class Log(Transform):
         return x.copy()
 
     def get_inverse(self, t):
-        return np.clip(np.exp(t), epsilon, np.inf)
+        return np.clip(np.exp(t), EPSILON, np.inf)
 
 
 # get a dictionary mapping a string to each transform

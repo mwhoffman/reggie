@@ -7,17 +7,14 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import mwhutils.random as random
 
-from mwhutils.random import rstate
+from ..utils.pretty import repr_args
 
 __all__ = ['Uniform']
 
 
-def _repr(obj, *args, **kwargs):
-    typename = type(obj).__name__
-    args = ['{:s}'.format(val) for val in args]
-    kwargs = ['{:s}={:s}'.format(name, val) for name, val in kwargs.items()]
-    return '{:s}({:s})'.format(typename, ', '.join(args + kwargs))
+EPSILON = np.finfo(np.float64).resolution
 
 
 class Prior(object):
@@ -43,18 +40,21 @@ class Uniform(Prior):
             raise ValueError("malformed upper/lower bounds")
 
     def __repr__(self):
-        return _repr(self,
-                     self.bounds[:, 0].squeeze(),
-                     self.bounds[:, 1].squeeze())
+        return repr_args(self,
+                         self.bounds[:, 0].squeeze(),
+                         self.bounds[:, 1].squeeze())
 
     def project(self, theta):
         return np.clip(theta, self.bounds[:, 0], self.bounds[:, 1])
 
-    def sample(self, size=1, rng=None):
-        rng = rstate(rng)
+    def sample(self, size=None, rng=None):
+        rng = random.rstate(rng)
         a = self.bounds[:, 0]
         b = self.bounds[:, 1] - a
-        return a + b * rng.rand(size, self.ndim)
+        if size is None:
+            return a + b * rng.rand(self.ndim)
+        else:
+            return a + b * rng.rand(size, self.ndim)
 
     def get_logprior(self, theta, grad=False):
         for (a, b), t in zip(self.bounds, theta):
