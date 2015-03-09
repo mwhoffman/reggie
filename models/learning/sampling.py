@@ -19,19 +19,22 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
     instance and returns a new model instance.
     """
     rng = rstate(rng)
-    support = model.get_support()
     theta0 = model.get_params()
     logp0 = model.get_logprior() + model.get_loglike()
 
     def get_logp(theta):
-        # Updates the new model (ie computing its sufficient statistics) and
-        # returns the posterior probability and the model itself.
-        if np.any(theta < support[:, 0]) or np.any(theta > support[:, 1]):
-            model_ = None
-            logp = -np.inf
-        else:
+        try:
+            # update the new model (ie computing its sufficient statistics) and
+            # compute the posterior probability and the model itself.
             model_ = model.copy(theta)
             logp = model_.get_logprior() + model_.get_loglike()
+
+        except ValueError:
+            # we tried to set parameters that don't lie in the support of
+            # either the variable itself or its prior.
+            model_ = None
+            logp = -np.inf
+
         return model_, logp
 
     for block in model.get_blocks():

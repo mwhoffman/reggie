@@ -10,6 +10,7 @@ import numpy as np
 import mwhutils.random as random
 
 from ..utils.pretty import repr_args
+from .domains import outside_bounds
 
 __all__ = ['Uniform']
 
@@ -44,9 +45,6 @@ class Uniform(Prior):
                          self.bounds[:, 0].squeeze(),
                          self.bounds[:, 1].squeeze())
 
-    def project(self, theta):
-        return np.clip(theta, self.bounds[:, 0], self.bounds[:, 1])
-
     def sample(self, size=None, rng=None):
         rng = random.rstate(rng)
         a = self.bounds[:, 0]
@@ -57,12 +55,7 @@ class Uniform(Prior):
             return a + b * rng.rand(size, self.ndim)
 
     def get_logprior(self, theta, grad=False):
-        for (a, b), t in zip(self.bounds, theta):
-            if (t < a) or (t > b):
-                logp = -np.inf
-                break
-        else:
-            logp = 0.0
+        logp = -np.inf if outside_bounds(self.bounds, theta) else 0.0
         return (logp, np.zeros_like(theta)) if grad else logp
 
 

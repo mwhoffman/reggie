@@ -11,6 +11,8 @@ import copy
 import tabulate
 
 from collections import OrderedDict
+
+from .domains import outside_bounds
 from .priors import PRIORS
 
 __all__ = ['Parameterized']
@@ -69,22 +71,52 @@ class Parameter(object):
         return obj
 
     def get_params(self, transform=False):
-        """Return the parameters."""
+        """
+        Return the parameters.
+        """
         if transform and self.transform is not None:
             return self.transform.get_transform(self.value)
         else:
             return self.value.copy()
 
     def set_params(self, theta, transform=False):
-        """Set the parameters."""
-        if transform and self.transform is not None:
-            theta = self.transform.get_inverse(theta)
+        """
+        Set the parameters.
+        """
+        # transform the parameters if necessary and ensure that they lie in the
+        # correct domain (here we're using the transform as a domain
+        # specification, although we may want to separate these later).
+        if self.transform is not None:
+            theta = self.transform.get_inverse(theta) if transform else theta
+            if outside_bounds(self.transform.bounds, theta):
+                raise ValueError('value lies outside the parameter\'s support')
+
+        # if a prior is specified, ensure that the parameters lie in the
+        # support of this distribution.
+        if self.prior is not None:
+            if outside_bounds(self.prior.bounds, theta):
+                raise ValueError('value lies outside the parameter\'s support')
+
         self.value.flat[:] = theta
 
     def set_prior(self, prior, *args, **kwargs):
         if prior is not None:
             prior = PRIORS[prior](*args, **kwargs)
-            self.value.flat[:] = prior.project(self.value)
+
+            if self.transform is not None and prior.bounds is not None:
+                bounds = self.transform.bounds
+                outside = (outside_bounds(bounds, prior.bounds[:, 0]) or
+                           outside_bounds(bounds, prior.bounds[:, 1]))
+                if outside:
+                    raise ValueError('prior support lies outside of the '
+                                     'parameter\'s domain')
+
+            if outside_bounds(prior.bounds, self.value):
+                # FIXME: we should raise a warning here or something to note
+                # that we're changing the value.
+                self.value.flat[:] = np.clip(self.value,
+                                             prior.bounds[:, 0],
+                                             prior.bounds[:, 1])
         self.prior = prior
 
     def get_gradfactor(self):
@@ -230,7 +262,7 @@ class Parameterized(object):
         print(tabulate.tabulate(table, headers, numalign=None))
 
     def set_param(self, key, theta):
-        self.__get_param(key).set_params(theta)
+        self.__get_param(key).set_params(np.array(theta, ndmin=1, copy=False))
         self._update()
 
     def set_prior(self, key, prior, *args, **kwargs):

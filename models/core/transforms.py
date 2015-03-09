@@ -43,6 +43,8 @@ class Transform(object):
 
 
 class Log(Transform):
+    bounds = np.array((EPSILON, np.inf))
+
     def __repr__(self):
         return repr_args(self)
 
