@@ -22,4 +22,8 @@ class BasicGP(ExactGP):
                        'kernel.ell': 'ell',
                        'mean.bias': 'mean'})
 
-        self._kwarg('ndim', ndim)
+    def __repr__(self):
+        if self._kernel._iso:
+            return super(BasicGP, self).__repr__(ndim=self._kernel.ndim)
+        else:
+            return super(BasicGP, self).__repr__()

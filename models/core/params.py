@@ -120,12 +120,11 @@ class Parameterized(object):
         self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
         # pylint: disable=W0212
         self.__params = OrderedDict()
-        self.__kwargs = OrderedDict()
         return self
 
-    def __repr__(self):
+    def __repr__(self, **kwargs):
         typename = self.__class__.__name__
-        parts = self.__params.items() + self.__kwargs.items()
+        parts = self.__params.items() + kwargs.items()
         parts = ['{:s}={:s}'.format(n, repr(p)) for n, p in parts]
         if any(isinstance(p, Parameterized) for p in self.__params.values()):
             sep = ',\n' + ' ' * (1+len(typename))
@@ -174,11 +173,6 @@ class Parameterized(object):
         for name, param in self.__walk_params():
             params.append((rename.get(name, name), param))
         self.__params = OrderedDict(params)
-        self.__kwargs = OrderedDict()
-
-    def _kwarg(self, name, value, default=None):
-        if value != default:
-            self.__kwargs[name] = value
 
     def _register(self, name, param, klass=None, transform=None, shape=()):
         """
