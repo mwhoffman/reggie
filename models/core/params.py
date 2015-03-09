@@ -11,8 +11,6 @@ import copy
 import tabulate
 
 from collections import OrderedDict
-
-from .transforms import TRANSFORMS
 from .priors import PRIORS
 
 __all__ = ['Parameterized']
@@ -82,11 +80,6 @@ class Parameter(object):
         if transform and self.transform is not None:
             theta = self.transform.get_inverse(theta)
         self.value.flat[:] = theta
-
-    def set_transform(self, transform, *args, **kwargs):
-        if transform is not None:
-            transform = TRANSFORMS[transform](*args, **kwargs)
-        self.transform = transform
 
     def set_prior(self, prior, *args, **kwargs):
         if prior is not None:
@@ -229,12 +222,11 @@ class Parameterized(object):
         return sum(param.nparams for _, param in self.__walk_params())
 
     def describe(self):
-        headers = ['name', 'value', 'transform', 'prior', 'block']
+        headers = ['name', 'value', 'prior', 'block']
         table = []
         for name, param in self.__walk_params():
-            trans = '-' if param.transform is None else str(param.transform)
             prior = '-' if param.prior is None else str(param.prior)
-            table.append([name, str(param), trans, prior, param.block])
+            table.append([name, str(param), prior, param.block])
         print(tabulate.tabulate(table, headers, numalign=None))
 
     def set_param(self, key, theta):
@@ -244,9 +236,6 @@ class Parameterized(object):
     def set_prior(self, key, prior, *args, **kwargs):
         self.__get_param(key).set_prior(prior, *args, **kwargs)
         self._update()
-
-    def set_transform(self, key, transform, *args, **kwargs):
-        self.__get_param(key).set_transform(transform, *args, **kwargs)
 
     def set_block(self, key, block):
         self.__get_param(key).block = block
