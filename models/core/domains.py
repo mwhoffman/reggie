@@ -11,6 +11,9 @@ import numpy as np
 __all__ = ['outside_bounds']
 
 
+EPSILON = np.finfo(np.float64).resolution
+
+
 def outside_bounds(bounds, theta):
     """
     Check whether a vector is inside the given bounds.

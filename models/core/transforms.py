@@ -8,12 +8,10 @@ from __future__ import print_function
 
 import numpy as np
 
+from .domains import EPSILON
 from ..utils.pretty import repr_args
 
 __all__ = ['Log']
-
-
-EPSILON = np.finfo(np.float64).resolution
 
 
 class Transform(object):

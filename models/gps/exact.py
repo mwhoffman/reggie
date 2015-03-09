@@ -17,13 +17,6 @@ from ..utils import linalg
 __all__ = ['ExactGP']
 
 
-### CONSTANTS #################################################################
-
-LOG2PI = np.log(2 * np.pi)
-
-
-### BASE KERNEL INTERFACE #####################################################
-
 class ExactGP(PosteriorModel):
     """
     Implementation of exact GP inference.
@@ -53,7 +46,8 @@ class ExactGP(PosteriorModel):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
 
-        lZ = -0.5 * (np.inner(self._a, self._a) + self.ndata * LOG2PI)
+        lZ = -0.5 * np.inner(self._a, self._a)
+        lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
         lZ -= np.sum(np.log(self._L.diagonal()))
 
         if not grad:

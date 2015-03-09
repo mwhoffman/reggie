@@ -104,9 +104,10 @@ class Parameter(object):
             prior = PRIORS[prior](*args, **kwargs)
 
             if self.transform is not None and prior.bounds is not None:
-                bounds = self.transform.bounds
-                outside = (outside_bounds(bounds, prior.bounds[:, 0]) or
-                           outside_bounds(bounds, prior.bounds[:, 1]))
+                tbounds = self.transform.bounds
+                pbounds = np.array(prior.bounds, ndmin=2, copy=False)
+                outside = (outside_bounds(tbounds, pbounds[:, 0]) or
+                           outside_bounds(tbounds, pbounds[:, 1]))
                 if outside:
                     raise ValueError('prior support lies outside of the '
                                      'parameter\'s domain')

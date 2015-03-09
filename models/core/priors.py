@@ -9,13 +9,10 @@ from __future__ import print_function
 import numpy as np
 import mwhutils.random as random
 
+from .domains import EPSILON
 from ..utils.pretty import repr_args
-from .domains import outside_bounds
 
-__all__ = ['Uniform']
-
-
-EPSILON = np.finfo(np.float64).resolution
+__all__ = ['Uniform', 'LogNormal']
 
 
 class Prior(object):
@@ -55,8 +52,72 @@ class Uniform(Prior):
             return a + b * rng.rand(size, self.ndim)
 
     def get_logprior(self, theta, grad=False):
-        logp = -np.inf if outside_bounds(self.bounds, theta) else 0.0
-        return (logp, np.zeros_like(theta)) if grad else logp
+        return (0.0, np.zeros_like(theta)) if grad else 0.0
+
+
+class LogNormal(Prior):
+    bounds = np.array((EPSILON, np.inf))
+
+    def __init__(self, mu=0, s2=1):
+        self._mu = np.array(mu, dtype=float, copy=True, ndmin=1)
+        self._s2 = np.array(s2, dtype=float, copy=True, ndmin=1)
+        self.ndim = len(self._mu)
+
+    def __repr__(self):
+        return repr_args(self, self._mu.squeeze(), self._s2.squeeze())
+
+    def sample(self, size=None, rng=None):
+        rng = random.rstate(rng)
+        m, s = self._mu, np.sqrt(self._s2)
+        if size is not None:
+            m = np.tile(m, (size, 1))
+            s = np.tile(s, (size, 1))
+        return rng.lognormal(m, s)
+
+    def get_logprior(self, theta, grad=False):
+        logp = np.sum(
+            - np.log(theta)
+            - 0.5 * np.log(2 * np.pi * self._s2) * self.ndim
+            - 0.5 * np.square(np.log(theta) - self._mu) / self._s2)
+
+        if grad:
+            dlogp = -((np.log(theta) - self._mu) / self._s2 + 1) / theta
+            return logp, dlogp
+
+        else:
+            return logp
+
+
+class Normal(Prior):
+    bounds = None
+
+    def __init__(self, mu=0, s2=1):
+        self._mu = np.array(mu, dtype=float, copy=True, ndmin=1)
+        self._s2 = np.array(s2, dtype=float, copy=True, ndmin=1)
+        self.ndim = len(self._mu)
+
+    def __repr__(self):
+        return repr_args(self, self._mu.squeeze(), self._s2.squeeze())
+
+    def sample(self, size=None, rng=None):
+        rng = random.rstate(rng)
+        m, s = self._mu, np.sqrt(self._s2)
+        if size is not None:
+            m = np.tile(m, (size, 1))
+            s = np.tile(s, (size, 1))
+        return rng.normal(m, s)
+
+    def get_logprior(self, theta, grad=False):
+        logp = np.sum(
+            - 0.5 * np.log(2 * np.pi * self._s2) * self.ndim
+            - 0.5 * np.square(np.log(theta) - self._mu) / self._s2)
+
+        if grad:
+            dlogp = -(theta - self._mu) / self._s2
+            return logp, dlogp
+
+        else:
+            return logp
 
 
 # get a dictionary mapping a string to each prior
