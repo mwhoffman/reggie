@@ -75,7 +75,7 @@ class Model(Parameterized):
         raise NotImplementedError
 
     def optimize(self):
-        optimize(self)
+        self.set_params(optimize(self, True), True)
 
 
 class PosteriorModel(Model):

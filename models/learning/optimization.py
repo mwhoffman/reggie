@@ -12,26 +12,26 @@ import scipy.optimize as so
 __all__ = ['optimize']
 
 
-def optimize(model):
+def optimize(model, raw=False):
     """
     Perform type-II maximum likelihood to fit GP hyperparameters.
     """
     # use a copy of the model so we don't modify it while we're optimizing
-    model_ = model.copy()
+    model = model.copy()
 
     # define the objective to MINIMIZE
     def objective(theta):
         # update the temporary model using parameters in the transformed space
-        model_.set_params(theta, True)
+        model.set_params(theta, True)
 
         # get the log-probability and its gradient in the untransformed space
-        logp0, dlogp0 = model_.get_logprior(True)
-        logp1, dlogp1 = model_.get_loglike(True)
+        logp0, dlogp0 = model.get_logprior(True)
+        logp1, dlogp1 = model.get_loglike(True)
 
         # form the posterior probability and multiply by the grad factor which
         # gives us the gradient in the transformed space (via the chain rule)
         logp = -(logp0 + logp1)
-        dlogp = -(dlogp0 + dlogp1) * model_.get_gradfactor()
+        dlogp = -(dlogp0 + dlogp1) * model.get_gradfactor()
 
         return logp, dlogp
 
@@ -47,5 +47,10 @@ def optimize(model):
                                    x0=model.get_params(True),
                                    bounds=bounds)
 
-    # make sure that the model is using the correct hypers
-    model.set_params(theta, True)
+    if raw:
+        # return the parameters in the transformed space
+        model = theta
+    else:
+        model.set_params(theta, True)
+
+    return model
