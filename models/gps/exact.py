@@ -8,11 +8,11 @@ from __future__ import print_function
 
 import numpy as np
 
-from ..core import linalg
 from ..core.transforms import Log
 from ..core.models import PosteriorModel
 from ..kernels.kernel import Kernel
 from ..functions.function import Function
+from ..utils import linalg
 
 __all__ = ['ExactGP']
 
@@ -23,7 +23,6 @@ LOG2PI = np.log(2 * np.pi)
 
 
 ### BASE KERNEL INTERFACE #####################################################
-
 
 class ExactGP(PosteriorModel):
     """

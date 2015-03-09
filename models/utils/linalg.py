@@ -27,7 +27,6 @@ def add_diagonal(A, d, copy=False):
 
 
 def cholesky(A, maxtries=5):
-    A = np.asfortranarray(A)
     L, info = lapack.dpotrf(A, lower=1)
     if info == 0:
         return L
