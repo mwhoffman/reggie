@@ -68,17 +68,15 @@ class Model(Parameterized):
             self._Y = np.r_[self._Y, Y]
             self._update()
 
+    def optimize(self):
+        self.set_params(optimize(self, True), True)
+
     def get_loglike(self, grad=False):
         """
         Get the log-likelihood of the model (and its gradient if requested).
         """
         raise NotImplementedError
 
-    def optimize(self):
-        self.set_params(optimize(self, True), True)
-
-
-class PosteriorModel(Model):
     def get_posterior(self, X, grad=False, predictive=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at

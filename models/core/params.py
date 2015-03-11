@@ -61,6 +61,9 @@ class Parameter(object):
         self.transform = TRANSFORMS[domain]
         self.bounds = BOUNDS[domain]
 
+        # FIXME: we should raise a warning if we clip the values
+        np.clip(self.value, self.bounds[0], self.bounds[1], out=self.value)
+
     def __repr__(self):
         if self.value.shape == ():
             return np.array2string(self.value.ravel(),

@@ -9,7 +9,7 @@ from __future__ import print_function
 import numpy as np
 
 from ..core.domains import POSITIVE
-from ..core.models import PosteriorModel
+from ..core.models import Model
 from ..kernels.kernel import Kernel
 from ..functions.function import Function
 from ..utils import linalg
@@ -17,7 +17,7 @@ from ..utils import linalg
 __all__ = ['ExactGP']
 
 
-class ExactGP(PosteriorModel):
+class ExactGP(Model):
     """
     Implementation of exact GP inference.
     """

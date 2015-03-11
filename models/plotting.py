@@ -37,9 +37,6 @@ def plot_posterior(model, xmin=None, xmax=None, data=True, predictive=False,
     model.
     """
 
-    # if not isinstance(model, PosteriorModel):
-    #     raise ValueError('model must be a PosteriorModel instance')
-
     if model.ndata == 0 and (xmin is None or xmax is None):
         raise ValueError('model has no data and no bounds are given')
 
@@ -82,14 +79,15 @@ def plot_posterior(model, xmin=None, xmax=None, data=True, predictive=False,
 
 
 def plot_chain(samples, names=None, **kwargs):
-    samples = samples - np.min(samples, axis=0)
-    samples /= np.max(samples, axis=0)
-
-    d = samples.shape[1]
-
     fig = pl.gcf()
     fig.clf()
+
     draw = kwargs.pop('draw', True)
+    legend = kwargs.pop('legend')
+
+    samples = samples - np.min(samples, axis=0)
+    samples /= np.max(samples, axis=0)
+    d = samples.shape[1]
 
     for i in xrange(d):
         ax = fig.add_subplot(d, 1, i+1)
@@ -110,7 +108,7 @@ def plot_pairs(samples, names=None, **kwargs):
     fig.clf()
 
     draw = kwargs.pop('draw', True)
-    legend = kwargs.pop('legend', True)
+    legend = kwargs.pop('legend')
 
     d = samples.shape[1]
 
