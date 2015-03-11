@@ -12,7 +12,7 @@ import numpy as np
 import numpy.testing as nt
 import scipy.optimize as spop
 
-import reggie.kernels as rk
+import reggie.kernels as kernels
 
 
 ### BASE TEST CLASSES #########################################################
@@ -70,9 +70,9 @@ class RealKernelTest(KernelTest):
 
 class TestSEARD(RealKernelTest):
     def __init__(self):
-        RealKernelTest.__init__(self, rk.SE(0.8, [0.3, 0.4]))
+        RealKernelTest.__init__(self, kernels.SE(0.8, [0.3, 0.4]))
 
 
 class TestSEIso(RealKernelTest):
     def __init__(self):
-        RealKernelTest.__init__(self, rk.SE(0.8, 0.3, ndim=2))
+        RealKernelTest.__init__(self, kernels.SE(0.8, 0.3, ndim=2))
