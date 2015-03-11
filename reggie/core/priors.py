@@ -19,14 +19,26 @@ class Prior(object):
     """
     Interface for prior distributions.
     """
-    def sample(self, size, rng=None):
+    def sample(self, size=None, rng=None):
+        """
+        Sample from the prior. If `size` is None, return a single sample,
+        otherwise return `size`-by-d array of samples.
+        """
         raise NotImplementedError
 
     def get_logprior(self, theta, grad=False):
+        """
+        Compute the log prior evaluated at the parameter values `theta`. If
+        `grad` is True return the gradient of this quantity wrt `theta` as
+        well.
+        """
         raise NotImplementedError
 
 
 class Uniform(Prior):
+    """
+    Uniform prior distribution with bounds a[i] and b[i].
+    """
     def __init__(self, a, b):
         a = np.array(a, ndmin=1, dtype=float)
         b = np.array(b, ndmin=1, dtype=float)
@@ -56,7 +68,12 @@ class Uniform(Prior):
 
 
 class LogNormal(Prior):
-    bounds = np.array((EPSILON, np.inf))
+    """
+    Log-normal prior where log of each parameter value has an independent
+    normal distribution with mean mu[i] and variance s2[i].
+    """
+
+    bounds = (EPSILON, np.inf)
 
     def __init__(self, mu=0, s2=1):
         self._mu = np.array(mu, dtype=float, copy=True, ndmin=1)
@@ -89,7 +106,12 @@ class LogNormal(Prior):
 
 
 class Normal(Prior):
-    bounds = np.array((-np.inf, np.inf))
+    """
+    Normal prior where each parameter value has an independent normal
+    distribution with mean mu[i] and variance s2[i].
+    """
+
+    bounds = (-np.inf, np.inf)
 
     def __init__(self, mu=0, s2=1):
         self._mu = np.array(mu, dtype=float, copy=True, ndmin=1)
@@ -108,9 +130,9 @@ class Normal(Prior):
         return rng.normal(m, s)
 
     def get_logprior(self, theta, grad=False):
-        logp = (
-            - 0.5 * np.log(2 * np.pi * self._s2) * self.ndim
-            - 0.5 * np.sum(np.square(theta - self._mu) / self._s2))
+        logp = np.sum(
+            - 0.5 * np.log(2 * np.pi * self._s2)
+            - 0.5 * np.square(theta - self._mu) / self._s2)
 
         if grad:
             dlogp = -(theta - self._mu) / self._s2

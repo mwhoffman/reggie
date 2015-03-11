@@ -41,7 +41,7 @@ class TransformTest(object):
             x = self.transform.get_inverse(t)
             d1 = self.transform.get_gradfactor(x)
             d2 = spop.approx_fprime(t, self.transform.get_inverse, 1e-8)
-            nt.assert_allclose(d1, d2)
+            nt.assert_allclose(d1, d2, rtol=1e-6)
 
 
 ### PER-INSTANCE TESTS ########################################################
