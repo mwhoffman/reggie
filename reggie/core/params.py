@@ -82,6 +82,11 @@ class Parameter(object):
         return _deepcopy(self, memo)
 
     def copy(self, theta=None, transform=False):
+        """
+        Return a copy of the parameter object. If `theta` is given, update the
+        parameter using this value, where we should apply the inverse transform
+        if `transform` is True.
+        """
         obj = copy.deepcopy(self)
         if theta is not None:
             obj.set_params(theta, transform)
@@ -89,7 +94,8 @@ class Parameter(object):
 
     def get_params(self, transform=False):
         """
-        Return the parameters.
+        Return the parameters. If `transform` is True return values in the
+        transformed space.
         """
         if transform:
             return self.transform.get_transform(self.value)
@@ -98,7 +104,8 @@ class Parameter(object):
 
     def set_params(self, theta, transform=False):
         """
-        Set the parameters.
+        Set the parameters to values given by `theta`. If `transform` is true
+        then theta lies in the transformed space.
         """
         # transform the parameters if necessary and ensure that they lie in the
         # correct domain (here we're using the transform as a domain
@@ -112,6 +119,10 @@ class Parameter(object):
         self.value.flat[:] = theta
 
     def set_prior(self, prior, *args, **kwargs):
+        """
+        Set the prior of the parameter object. This should be given as a string
+        identifier and any (fixed!) hyperparameters.
+        """
         if prior is None:
             self.prior = prior
             self.bounds = BOUNDS[self.domain]
@@ -141,6 +152,11 @@ class Parameter(object):
             self.value.flat[:] = value
 
     def get_gradfactor(self):
+        """
+        Return a gradient factor which can be used to transform a gradient in
+        the original space into a gradient in the transformed space, via the
+        chain rule.
+        """
         return self.transform.get_gradfactor(self.value)
 
     def get_logprior(self, grad=False):
@@ -184,6 +200,9 @@ class Parameterized(object):
         return _deepcopy(self, memo)
 
     def __get_param(self, key):
+        """
+        Return the parameter object associated with the given key.
+        """
         node = self
         try:
             for part in key.split('.'):
@@ -196,6 +215,10 @@ class Parameterized(object):
         return node
 
     def __walk_params(self):
+        """
+        Walk the set of parameters, yielding the Parameter objects via a
+        depth-first traversal.
+        """
         for name, param in self.__params.items():
             if isinstance(param, Parameterized):
                 # pylint: disable=W0212
@@ -205,12 +228,23 @@ class Parameterized(object):
                 yield name, param
 
     def copy(self, theta=None, transform=False):
+        """
+        Return a copy of the object. If `theta` is given then update the
+        parameters of the copy; if `transform` is True then these parameters
+        are in the transformed space.
+        """
         obj = copy.deepcopy(self)
         if theta is not None:
             obj.set_params(theta, transform)
         return obj
 
     def _flatten(self, rename=None):
+        """
+        Flatten the set of parameters associated with this object. Ultimately
+        this should have no outward effect unless `rename` is given as a
+        dictionary mapping requested parameters to new names. This allows for
+        aliasing parameters (see BasicGP for an example).
+        """
         rename = dict() if rename is None else rename
         params = []
         for name, param in self.__walk_params():
@@ -219,7 +253,10 @@ class Parameterized(object):
 
     def _register(self, name, param, klass=None, domain=REAL, shape=()):
         """
-        Register a parameter.
+        Register a parameter given a `(name, param)` pair. If `klass` is given
+        then this should be a Parameterized object of the given class.
+        Otherwise `domain` and `shape` can be used to specify the domain and
+        shape of a Parameter object.
         """
         if klass is not None and not isinstance(param, klass):
             raise ValueError("parameter '{:s}' must be of type {:s}"
@@ -272,6 +309,9 @@ class Parameterized(object):
         return sum(param.nparams for _, param in self.__walk_params())
 
     def describe(self):
+        """
+        Describe the structure of the object in terms of its hyperparameters.
+        """
         headers = ['name', 'value', 'prior', 'block']
         table = []
         for name, param in self.__walk_params():
@@ -280,14 +320,24 @@ class Parameterized(object):
         print(tabulate.tabulate(table, headers, numalign=None))
 
     def set_param(self, key, theta):
+        """
+        Set the value of the named parameter.
+        """
         self.__get_param(key).set_params(np.array(theta, ndmin=1, copy=False))
         self._update()
 
     def set_prior(self, key, prior, *args, **kwargs):
+        """
+        Set the prior of the named parameter.
+        """
         self.__get_param(key).set_prior(prior, *args, **kwargs)
         self._update()
 
     def set_block(self, key, block):
+        """
+        Set the block of the named parameter (used by sampling methods).
+        """
+        # pylint: disable=W0201
         self.__get_param(key).block = block
 
     def set_params(self, theta, transform=False):
@@ -316,6 +366,10 @@ class Parameterized(object):
                              for _, param in self.__walk_params())
 
     def get_gradfactor(self):
+        """
+        Return the gradient factor which should be multipled by any gradient in
+        order to define a gradient in the transformed space.
+        """
         if self.nparams == 0:
             return np.array([])
         else:
@@ -344,6 +398,10 @@ class Parameterized(object):
             return logp, np.hstack(dlogp)
 
     def get_bounds(self, transform=False):
+        """
+        Get bounds on the hyperparameters. If `transform` is True then these
+        bounds are those in the transformed space.
+        """
         bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
         a = 0
         for _, param in self.__walk_params():
@@ -358,6 +416,10 @@ class Parameterized(object):
         return bounds
 
     def get_blocks(self):
+        """
+        Return a list whose ith element contains indices for the parameters
+        which make up the ith block.
+        """
         blocks = dict()
         a = 0
         for _, param in self.__walk_params():
@@ -367,11 +429,14 @@ class Parameterized(object):
         return blocks.values()
 
     def get_names(self):
+        """
+        Return a list of names for each parameter.
+        """
         names = []
         for name, param in self.__walk_params():
             if param.nparams == 1:
                 names.append(name)
             else:
-                names.extend('{:s}_{:d}'.format(name, n)
+                names.extend('{:s}[{:d}]'.format(name, n)
                              for n in xrange(param.nparams))
         return names
