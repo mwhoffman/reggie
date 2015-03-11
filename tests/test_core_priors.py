@@ -1,5 +1,5 @@
 """
-Tests for domain helpers.
+Tests for priors.
 """
 
 # pylint: disable=missing-docstring

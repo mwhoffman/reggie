@@ -1,5 +1,5 @@
 """
-Tests for 
+Tests for pretty-printing.
 """
 
 # pylint: disable=missing-docstring
