@@ -28,7 +28,26 @@ BOUNDS = {
 class Transform(object):
     """
     Interface for parameter transformations.
+
+    NOTE: this is created using the Singleton design pattern because transforms
+    are simple enough and shouldn't have state. Singletons are probably bad and
+    we shouldn't do this, but I'd like the save memory.
     """
+    __slots__ = []
+    __instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls.__instance:
+            cls.__instance = super(Transform, cls).__new__(cls,
+                                                           *args, **kwargs)
+        return cls.__instance
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, _):
+        return self
+
     def get_transform(self, x):
         """
         Transform a parameter with value `x` from its original space into the
@@ -52,6 +71,7 @@ class Transform(object):
 
 
 class Log(Transform):
+    """Log transform."""
     def get_transform(self, x):
         return np.log(x)
 
@@ -63,6 +83,7 @@ class Log(Transform):
 
 
 class Identity(Transform):
+    """Identity transform."""
     def get_transform(self, x):
         return x.copy()
 
