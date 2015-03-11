@@ -15,10 +15,10 @@ if __name__ == '__main__':
     gp = models.gps.BasicGP(0.1, 1.0, 0.1)
 
     # set the hyperpriors
-    gp.set_prior('sn2', 'uniform', 0.001, 1)
-    gp.set_prior('rho', 'uniform', 0.001, 10)
-    gp.set_prior('ell', 'uniform', 0.001, 1)
-    gp.set_prior('mean', 'uniform', -3, 3)
+    gp.set_prior('sn2', 'lognormal', 0, 10)
+    gp.set_prior('rho', 'lognormal', 0, 100)
+    gp.set_prior('ell', 'lognormal', 0, 10)
+    gp.set_prior('mean', 'normal', 0, 20)
 
     gp.set_block('rho', 1)
     gp.set_block('mean', 2)

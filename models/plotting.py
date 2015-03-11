@@ -18,11 +18,13 @@ def _figure(fig, draw=True):
     return fig
 
 
-def _axis(ax, despine=True, draw=True):
+def _axis(ax, legend=True, despine=True, draw=True):
     ax.axis('tight')
     if despine:
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+    if legend:
+        ax.legend(loc=0)
     if draw:
         ax.figure.canvas.draw()
     return ax
@@ -106,7 +108,9 @@ def plot_chain(samples, names=None, **kwargs):
 def plot_pairs(samples, names=None, **kwargs):
     fig = pl.gcf()
     fig.clf()
+
     draw = kwargs.pop('draw', True)
+    legend = kwargs.pop('legend', True)
 
     d = samples.shape[1]
 

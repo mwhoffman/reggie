@@ -10,7 +10,7 @@ import numpy as np
 
 from .kernel import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
-from ..core.transforms import Log
+from ..core.domains import POSITIVE
 
 __all__ = ['SE']
 
@@ -27,8 +27,8 @@ class SE(RealKernel):
         shape = ('d',) if (ndim is None) else ()
 
         # register our parameters
-        self._rho = self._register('rho', rho, transform=Log())
-        self._ell = self._register('ell', ell, transform=Log(), shape=shape)
+        self._rho = self._register('rho', rho, domain=POSITIVE)
+        self._ell = self._register('ell', ell, domain=POSITIVE, shape=shape)
 
         # save flags for iso/ndim
         self._iso = ndim is not None

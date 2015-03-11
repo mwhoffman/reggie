@@ -36,7 +36,7 @@ def optimize(model, raw=False):
         return logp, dlogp
 
     # get rid of any infinite bounds.
-    bounds = model.get_support(True)
+    bounds = model.get_bounds(True)
     isinf = np.isinf(bounds)
     bounds = np.array(bounds, dtype=object)
     bounds[isinf] = None

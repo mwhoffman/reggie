@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from ..core.transforms import Log
+from ..core.domains import POSITIVE
 from ..core.models import PosteriorModel
 from ..kernels.kernel import Kernel
 from ..functions.function import Function
@@ -22,7 +22,7 @@ class ExactGP(PosteriorModel):
     Implementation of exact GP inference.
     """
     def __init__(self, sn2, kernel, mean):
-        self._sn2 = self._register('sn2', sn2, transform=Log())
+        self._sn2 = self._register('sn2', sn2, domain=POSITIVE)
         self._kernel = self._register('kernel', kernel, Kernel)
         self._mean = self._register('mean', mean, Function)
 

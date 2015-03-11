@@ -15,6 +15,4 @@ if __name__ == '__main__':
     gp.optimize()
 
     pl.figure(1)
-    models.plotting.plot_posterior(gp, draw=False)
-    pl.legend(loc=0)
-    pl.draw()
+    models.plotting.plot_posterior(gp)

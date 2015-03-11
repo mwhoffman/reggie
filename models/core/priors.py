@@ -12,7 +12,7 @@ import mwhutils.random as random
 from .domains import EPSILON
 from ..utils.pretty import repr_args
 
-__all__ = ['Uniform', 'LogNormal']
+__all__ = ['Uniform', 'LogNormal', 'Normal']
 
 
 class Prior(object):
@@ -89,7 +89,7 @@ class LogNormal(Prior):
 
 
 class Normal(Prior):
-    bounds = None
+    bounds = np.array((-np.inf, np.inf))
 
     def __init__(self, mu=0, s2=1):
         self._mu = np.array(mu, dtype=float, copy=True, ndmin=1)
@@ -108,9 +108,9 @@ class Normal(Prior):
         return rng.normal(m, s)
 
     def get_logprior(self, theta, grad=False):
-        logp = np.sum(
+        logp = (
             - 0.5 * np.log(2 * np.pi * self._s2) * self.ndim
-            - 0.5 * np.square(np.log(theta) - self._mu) / self._s2)
+            - 0.5 * np.sum(np.square(theta - self._mu) / self._s2))
 
         if grad:
             dlogp = -(theta - self._mu) / self._s2

@@ -12,14 +12,26 @@ import tabulate
 
 from collections import OrderedDict
 
-from .domains import outside_bounds
 from .priors import PRIORS
+from .domains import REAL
+from .domains import BOUNDS, TRANSFORMS
 
 __all__ = ['Parameterized']
 
 
 # CONSTANTS FOR ADJUSTING PARAMETER FORMATTING
 PRECISION = 2
+
+
+def _outbounds(bounds, theta):
+    """
+    Check whether a vector is inside the given bounds.
+    """
+    if bounds is None:
+        return False
+    else:
+        bounds = np.array(bounds, ndmin=2)
+        return np.any(theta < bounds[:, 0]) or np.any(theta > bounds[:, 1])
 
 
 def _deepcopy(obj, memo):
@@ -40,12 +52,14 @@ class Parameter(object):
     """
     Representation of a parameter vector.
     """
-    def __init__(self, value, transform=None, prior=None, block=0):
+    def __init__(self, value, domain, prior=None, block=0):
         self.nparams = value.size
         self.value = value
-        self.transform = transform
         self.prior = prior
         self.block = block
+        self.domain = domain
+        self.transform = TRANSFORMS[domain]
+        self.bounds = BOUNDS[domain]
 
     def __repr__(self):
         if self.value.shape == ():
@@ -74,7 +88,7 @@ class Parameter(object):
         """
         Return the parameters.
         """
-        if transform and self.transform is not None:
+        if transform:
             return self.transform.get_transform(self.value)
         else:
             return self.value.copy()
@@ -86,45 +100,45 @@ class Parameter(object):
         # transform the parameters if necessary and ensure that they lie in the
         # correct domain (here we're using the transform as a domain
         # specification, although we may want to separate these later).
-        if self.transform is not None:
-            theta = self.transform.get_inverse(theta) if transform else theta
-            if outside_bounds(self.transform.bounds, theta):
-                raise ValueError('value lies outside the parameter\'s support')
+        if transform:
+            theta = self.transform.get_inverse(theta)
 
-        # if a prior is specified, ensure that the parameters lie in the
-        # support of this distribution.
-        if self.prior is not None:
-            if outside_bounds(self.prior.bounds, theta):
-                raise ValueError('value lies outside the parameter\'s support')
+        if _outbounds(self.bounds, theta):
+            raise ValueError('value lies outside the parameter\'s bounds')
 
         self.value.flat[:] = theta
 
     def set_prior(self, prior, *args, **kwargs):
-        if prior is not None:
+        if prior is None:
+            self.prior = prior
+            self.bounds = BOUNDS[self.domain]
+
+        else:
             prior = PRIORS[prior](*args, **kwargs)
+            dbounds = np.array(BOUNDS[self.domain], ndmin=2, copy=False)
+            pbounds = np.array(prior.bounds, ndmin=2, copy=False)
 
-            if self.transform is not None and prior.bounds is not None:
-                tbounds = self.transform.bounds
-                pbounds = np.array(prior.bounds, ndmin=2, copy=False)
-                outside = (outside_bounds(tbounds, pbounds[:, 0]) or
-                           outside_bounds(tbounds, pbounds[:, 1]))
-                if outside:
-                    raise ValueError('prior support lies outside of the '
-                                     'parameter\'s domain')
+            if len(pbounds) > 1:
+                dbounds = np.tile(dbounds, (len(pbounds), 1))
 
-            if outside_bounds(prior.bounds, self.value):
-                # FIXME: we should raise a warning here or something to note
-                # that we're changing the value.
-                self.value.flat[:] = np.clip(self.value,
-                                             prior.bounds[:, 0],
-                                             prior.bounds[:, 1])
-        self.prior = prior
+            if (_outbounds(dbounds, pbounds[:, 0]) or
+                    _outbounds(dbounds, pbounds[:, 1])):
+                raise ValueError('prior support lies outside of the '
+                                 'parameter\'s domain')
+
+            bounds = np.c_[
+                np.max(np.c_[pbounds[:, 0], dbounds[:, 0]], axis=1),
+                np.min(np.c_[pbounds[:, 1], dbounds[:, 1]], axis=1)]
+
+            # FIXME: we should raise a warning if we change the value
+            value = np.clip(self.value, bounds[:, 0], bounds[:, 1])
+
+            self.prior = prior
+            self.bounds = bounds.squeeze()
+            self.value.flat[:] = value
 
     def get_gradfactor(self):
-        if self.transform is None:
-            return np.ones(self.nparams)
-        else:
-            return self.transform.get_gradfactor(self.value)
+        return self.transform.get_gradfactor(self.value)
 
     def get_logprior(self, grad=False):
         """
@@ -200,7 +214,7 @@ class Parameterized(object):
             params.append((rename.get(name, name), param))
         self.__params = OrderedDict(params)
 
-    def _register(self, name, param, klass=None, transform=None, shape=()):
+    def _register(self, name, param, klass=None, domain=REAL, shape=()):
         """
         Register a parameter.
         """
@@ -235,7 +249,7 @@ class Parameterized(object):
                                  .format(name, ', '.join(map(str, shape))))
 
             # save the parameter
-            self.__params[name] = Parameter(param, transform)
+            self.__params[name] = Parameter(param, domain)
 
         # return either the value of a Parameter instance or the Parameterized
         # object so that it can be used by the actual model
@@ -326,19 +340,19 @@ class Parameterized(object):
                 dlogp.append(elem[1])
             return logp, np.hstack(dlogp)
 
-    def get_support(self, transform=False):
-        support = np.tile((-np.inf, np.inf), (self.nparams, 1))
+    def get_bounds(self, transform=False):
+        bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
         a = 0
         for _, param in self.__walk_params():
             b = a + param.nparams
-            if param.prior is not None and hasattr(param.prior, 'bounds'):
-                if transform and param.transform is not None:
-                    support[a:b] = np.array(map(param.transform.get_transform,
-                                                param.prior.bounds.T)).T
-                else:
-                    support[a:b] = param.prior.bounds
+            if transform:
+                bounds[a:b] = [
+                    param.transform.get_transform(_)
+                    for _ in np.array(param.bounds, ndmin=2)]
+            else:
+                bounds[a:b] = param.bounds
             a = b
-        return support
+        return bounds
 
     def get_blocks(self):
         blocks = dict()
