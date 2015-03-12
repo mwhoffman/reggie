@@ -35,6 +35,9 @@ def test_cholesky():
     A[0, 0] = -1
     nt.assert_raises(linalg.LinAlgError, linalg.cholesky, A)
 
+    A = np.ones((10, 10))
+    _ = linalg.cholesky(A)
+
     A = np.ones((10, 10)) - 0.5 * np.eye(10)
     nt.assert_raises(linalg.LinAlgError, linalg.cholesky, A)
 
