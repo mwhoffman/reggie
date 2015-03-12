@@ -19,33 +19,45 @@ def optimize(model, raw=False):
     # use a copy of the model so we don't modify it while we're optimizing
     model = model.copy()
 
-    # define the objective to MINIMIZE
-    def objective(theta):
-        # update the temporary model using parameters in the transformed space
-        model.set_params(theta, True)
+    if model.nparams == 0:
+        # this is kind of a stupid object to optimize, but we want to make sure
+        # that we don't crash if someone decides to do this.
+        theta = np.array([])
 
-        # get the log-probability and its gradient in the untransformed space
-        logp0, dlogp0 = model.get_logprior(True)
-        logp1, dlogp1 = model.get_loglike(True)
+    else:
+        def objective(theta):
+            """
+            Return the negative log marginal likelihood of the model and the
+            gradient of this quantity wrt the parameters.
+            """
+            # update the temporary model using parameters in the transformed
+            # space
+            model.set_params(theta, True)
 
-        # form the posterior probability and multiply by the grad factor which
-        # gives us the gradient in the transformed space (via the chain rule)
-        logp = -(logp0 + logp1)
-        dlogp = -(dlogp0 + dlogp1) * model.get_gradfactor()
+            # get the log-probability and its gradient in the untransformed
+            # space
+            logp0, dlogp0 = model.get_logprior(True)
+            logp1, dlogp1 = model.get_loglike(True)
 
-        return logp, dlogp
+            # form the posterior probability and multiply by the grad factor
+            # which gives us the gradient in the transformed space (via the
+            # chain rule)
+            logp = -(logp0 + logp1)
+            dlogp = -(dlogp0 + dlogp1) * model.get_gradfactor()
 
-    # get rid of any infinite bounds.
-    bounds = model.get_bounds(True)
-    isinf = np.isinf(bounds)
-    bounds = np.array(bounds, dtype=object)
-    bounds[isinf] = None
-    bounds = map(tuple, bounds)
+            return logp, dlogp
 
-    # optimize the model
-    theta, _, _ = so.fmin_l_bfgs_b(func=objective,
-                                   x0=model.get_params(True),
-                                   bounds=bounds)
+        # get rid of any infinite bounds.
+        bounds = model.get_bounds(True)
+        isinf = np.isinf(bounds)
+        bounds = np.array(bounds, dtype=object)
+        bounds[isinf] = None
+        bounds = map(tuple, bounds)
+
+        # optimize the model
+        theta, _, _ = so.fmin_l_bfgs_b(func=objective,
+                                       x0=model.get_params(True),
+                                       bounds=bounds)
 
     if raw:
         # return the parameters in the transformed space
