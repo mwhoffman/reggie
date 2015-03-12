@@ -27,11 +27,8 @@ def _outbounds(bounds, theta):
     """
     Check whether a vector is inside the given bounds.
     """
-    if bounds is None:
-        return False
-    else:
-        bounds = np.array(bounds, ndmin=2)
-        return np.any(theta < bounds[:, 0]) or np.any(theta > bounds[:, 1])
+    bounds = np.array(bounds, ndmin=2)
+    return np.any(theta < bounds[:, 0]) or np.any(theta > bounds[:, 1])
 
 
 def _deepcopy(obj, memo):
@@ -61,8 +58,8 @@ class Parameter(object):
         self.transform = TRANSFORMS[domain]
         self.bounds = BOUNDS[domain]
 
-        # FIXME: we should raise a warning if we clip the values
-        np.clip(self.value, self.bounds[0], self.bounds[1], out=self.value)
+        # note this will raise an error if we're out of bounds.
+        self.set_params(self.value.ravel())
 
     def __repr__(self):
         if self.value.shape == ():
@@ -81,26 +78,15 @@ class Parameter(object):
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
 
-    def copy(self, theta=None, transform=False):
-        """
-        Return a copy of the parameter object. If `theta` is given, update the
-        parameter using this value, where we should apply the inverse transform
-        if `transform` is True.
-        """
-        obj = copy.deepcopy(self)
-        if theta is not None:
-            obj.set_params(theta, transform)
-        return obj
-
     def get_params(self, transform=False):
         """
         Return the parameters. If `transform` is True return values in the
         transformed space.
         """
         if transform:
-            return self.transform.get_transform(self.value)
+            return self.transform.get_transform(self.value).ravel()
         else:
-            return self.value.copy()
+            return self.value.copy().ravel()
 
     def set_params(self, theta, transform=False):
         """
@@ -145,7 +131,7 @@ class Parameter(object):
                 np.min(np.c_[pbounds[:, 1], dbounds[:, 1]], axis=1)]
 
             # FIXME: we should raise a warning if we change the value
-            value = np.clip(self.value, bounds[:, 0], bounds[:, 1])
+            value = np.clip(self.value.ravel(), bounds[:, 0], bounds[:, 1])
 
             self.prior = prior
             self.bounds = bounds.squeeze()
@@ -157,7 +143,7 @@ class Parameter(object):
         the original space into a gradient in the transformed space, via the
         chain rule.
         """
-        return self.transform.get_gradfactor(self.value)
+        return self.transform.get_gradfactor(self.value).ravel()
 
     def get_logprior(self, grad=False):
         """
@@ -312,11 +298,11 @@ class Parameterized(object):
         """
         Describe the structure of the object in terms of its hyperparameters.
         """
-        headers = ['name', 'value', 'prior', 'block']
+        headers = ['name', 'value', 'domain', 'prior', 'block']
         table = []
         for name, param in self.__walk_params():
             prior = '-' if param.prior is None else str(param.prior)
-            table.append([name, str(param), prior, param.block])
+            table.append([name, str(param), param.domain, prior, param.block])
         print(tabulate.tabulate(table, headers, numalign=None))
 
     def set_param(self, key, theta):

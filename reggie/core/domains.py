@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-__all__ = ['BOUNDS', 'TRANSFORMS', 'REAL', 'POSITIVE']
+__all__ = ['REAL', 'POSITIVE']
 
 
 # numerical constants
