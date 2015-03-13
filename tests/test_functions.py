@@ -1,5 +1,5 @@
 """
-Tests for kernel objects.
+Tests for function objects.
 """
 
 # pylint: disable=missing-docstring

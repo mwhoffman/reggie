@@ -1,5 +1,5 @@
 """
-Tests for kernel objects.
+Tests for distance helpers.
 """
 
 # pylint: disable=missing-docstring

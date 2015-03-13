@@ -1,5 +1,5 @@
 """
-Tests for pretty-printing.
+Tests for linear algebra helpers.
 """
 
 # pylint: disable=missing-docstring

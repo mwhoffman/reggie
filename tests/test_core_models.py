@@ -1,5 +1,5 @@
 """
-Tests for domain helpers.
+Tests for base model objects.
 """
 
 # pylint: disable=missing-docstring
