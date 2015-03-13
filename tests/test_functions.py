@@ -38,12 +38,8 @@ class FunctionTest(object):
             G2 = np.array([spop.approx_fprime(x, f, 1e-8, x_)
                            for x_ in self.X]).T
             nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
-
-    def test_get_gradx(self):
-        f = self.function
-        G1 = self.function.get_gradx(self.X)
-        G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in self.X])
-        nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
+        else:
+            assert list(self.function.get_grad(self.X)) == []
 
 
 ### PER-INSTANCE TEST CLASSES #################################################

@@ -8,12 +8,12 @@ from __future__ import print_function
 
 import numpy as np
 
-from .function import RealFunction
+from .function import Function
 
 __all__ = ['Zero', 'Constant']
 
 
-class Zero(RealFunction):
+class Zero(Function):
     """
     Function which returns zero on any input.
     """
@@ -23,11 +23,8 @@ class Zero(RealFunction):
     def get_grad(self, X):
         return iter([])
 
-    def get_gradx(self, X):
-        return np.zeros_like(X)
 
-
-class Constant(RealFunction):
+class Constant(Function):
     """
     Function which returns a constant value on any input.
     """
@@ -39,6 +36,3 @@ class Constant(RealFunction):
 
     def get_grad(self, X):
         yield np.ones(len(X))
-
-    def get_gradx(self, X):
-        return np.zeros_like(X)

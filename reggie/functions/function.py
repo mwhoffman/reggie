@@ -10,7 +10,7 @@ import numpy as np
 
 from ..core.params import Parameterized
 
-__all__ = ['Function', 'RealFunction']
+__all__ = ['Function']
 
 
 ### BASE KERNEL INTERFACE #####################################################
@@ -34,17 +34,5 @@ class Function(Parameterized):
         Get the gradient of the function with respect to any hyperparameters,
         evaluated at input points X. Return a generator yielding each gradient
         component.
-        """
-        raise NotImplementedError
-
-
-class RealFunction(Function):
-    """
-    Interface for functions defined over real input spaces.
-    """
-    def get_gradx(self, X):
-        """
-        Get the gradient of the function with respect to the input space,
-        evaluated at X.
         """
         raise NotImplementedError

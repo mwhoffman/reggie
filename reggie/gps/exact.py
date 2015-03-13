@@ -92,8 +92,17 @@ class ExactGP(Model):
             return mu, s2
 
         # Get the prior gradients.
-        dmu = self._mean.get_gradx(X)
+        dmu = None
         ds2 = np.zeros_like(X)
+
+        if hasattr(self._mean, 'get_gradx'):
+            # if the mean has real-valued inputs then it should define this
+            # method to get the gradient of the mean function wrt its inputs.
+            dmu = self._mean.get_gradx(X)
+        else:
+            # however, constant functions can take any inputs, not just
+            # real-valued. but their gradients are zeros anyway.
+            dmu = np.zeros_like(X)
 
         # NOTE: the above assumes a constant mean and stationary kernel (which
         # we satisfy, but should we change either assumption...).
