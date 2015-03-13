@@ -42,6 +42,7 @@ def test_init():
 
     assert id(obj.a) != id(obj.b)
     nt.assert_raises(ValueError, Child, 1, 'asdf')
+    nt.assert_raises(ValueError, obj._register, 'a', 1)
 
 
 class TestParams(object):
@@ -82,6 +83,8 @@ class TestParams(object):
         nt.assert_equal(obj1.get_names(), self.obj.get_names())
         nt.assert_equal(obj2.get_names(), ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
                                            'c[3]', 'd'])
+
+        nt.assert_raises(ValueError, obj2._flatten, {'a': 'asdf', 'b': 'asdf'})
 
     def test_transform(self):
         obj = self.obj.copy(self.obj.get_params(True), True)

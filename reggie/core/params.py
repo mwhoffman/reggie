@@ -235,6 +235,8 @@ class Parameterized(object):
         aliasing parameters (see BasicGP for an example).
         """
         rename = dict() if rename is None else rename
+        if len(set(rename.values())) < len(rename):
+            raise ValueError('assigning multiple parameters to the same name')
         params = []
         for name, param in self.__walk_params():
             params.append((rename.get(name, name), param))
@@ -247,6 +249,10 @@ class Parameterized(object):
         Otherwise `domain` and `shape` can be used to specify the domain and
         shape of a Parameter object.
         """
+        if name in self.__params:
+            raise ValueError("parameter '{:s}' has already been registered"
+                             .format(name))
+
         if klass is not None and not isinstance(param, klass):
             raise ValueError("parameter '{:s}' must be of type {:s}"
                              .format(name, klass.__name__))
