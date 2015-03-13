@@ -114,6 +114,8 @@ class TestParams(object):
     def test_priors(self):
         set_prior = self.obj.set_prior
         nt.assert_raises(ValueError, set_prior, 'a.b', 'uniform', -1, 1)
+        nt.assert_warns(UserWarning, set_prior, 'a.a', 'uniform', 1.3, 2)
+
         _ = self.obj.get_logprior()
         _, _ = self.obj.get_logprior(True)
 

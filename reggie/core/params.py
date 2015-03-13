@@ -9,8 +9,8 @@ from __future__ import print_function
 import numpy as np
 import copy
 import tabulate
-
-from collections import OrderedDict
+import warnings
+import collections
 
 from .priors import PRIORS
 from .domains import REAL
@@ -130,7 +130,10 @@ class Parameter(object):
                 np.max(np.c_[pbounds[:, 0], dbounds[:, 0]], axis=1),
                 np.min(np.c_[pbounds[:, 1], dbounds[:, 1]], axis=1)]
 
-            # FIXME: we should raise a warning if we change the value
+            if _outbounds(bounds, self.value.ravel()):
+                message = 'clipping parameter value outside prior support'
+                warnings.warn(message, stacklevel=3)
+
             value = np.clip(self.value.ravel(), bounds[:, 0], bounds[:, 1])
 
             self.prior = prior
@@ -164,7 +167,7 @@ class Parameterized(object):
     def __new__(cls, *args, **kwargs):
         self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
         # pylint: disable=W0212
-        self.__params = OrderedDict()
+        self.__params = collections.OrderedDict()
         return self
 
     def __repr__(self, **kwargs):
@@ -235,7 +238,7 @@ class Parameterized(object):
         params = []
         for name, param in self.__walk_params():
             params.append((rename.get(name, name), param))
-        self.__params = OrderedDict(params)
+        self.__params = collections.OrderedDict(params)
 
     def _register(self, name, param, klass=None, domain=REAL, shape=()):
         """
