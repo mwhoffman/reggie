@@ -1,5 +1,5 @@
 """
-Exact inference for GP regression.
+Linear algebra helpers.
 """
 
 from __future__ import division
@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import warnings
 
 from scipy.linalg import lapack
 from scipy.linalg import LinAlgError
@@ -46,9 +47,10 @@ def cholesky(A, maxtries=5):
             raise LinAlgError('Matrix has non-positive diagonal elements')
         j = d.mean() * 1e-6
         for _ in xrange(maxtries):
-            # FIXME: we should still raise a warning here.
             L, info = lapack.dpotrf(add_diagonal(A, j, True), lower=1)
             if info == 0:
+                message = 'jitter of {:s} required to compute the cholesky'
+                warnings.warn(message.format(str(j)), stacklevel=2)
                 return L
             else:
                 j *= 10
