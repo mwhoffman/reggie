@@ -53,7 +53,6 @@ class Parameter(object):
     Representation of a parameter vector.
     """
     def __init__(self, value, domain, prior=None, block=0):
-        self.nparams = value.size
         self.value = value
         self.prior = prior
         self.block = block
@@ -80,6 +79,10 @@ class Parameter(object):
         # array when called on a 0-dimensional object.
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
+
+    @property
+    def nparams(self):
+        return self.value.size
 
     def get_params(self, transform=False):
         """
