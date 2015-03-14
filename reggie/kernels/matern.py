@@ -1,5 +1,5 @@
 """
-Implementation of the squared-exponential kernels.
+Implementation of the matern kernel.
 """
 
 from __future__ import division

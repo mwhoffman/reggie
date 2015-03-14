@@ -1,5 +1,7 @@
 """
-Prior distributions.
+Definitions of various priors. Note that while priors can be defined over a
+vector of values, all those implemented in this module are assumed to be
+independent.
 """
 
 from __future__ import division

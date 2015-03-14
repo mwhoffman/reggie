@@ -1,5 +1,5 @@
 """
-Objects which implement GP models.
+Objects which implement learning.
 """
 
 # pylint: disable=wildcard-import

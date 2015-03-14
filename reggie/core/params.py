@@ -1,5 +1,8 @@
 """
-Parameters and parameterizable objects.
+Interface for parameterized objects. The Parameterized class represents a
+parameterized object which can get/set its values and evaluate a log-prior over
+those values. Note, however, that this does not define any error or probability
+terms for the object. For this, see the Model class.
 """
 
 from __future__ import division

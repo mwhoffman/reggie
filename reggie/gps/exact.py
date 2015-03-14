@@ -10,11 +10,14 @@ import numpy as np
 
 from ..core.domains import POSITIVE
 from ..core.models import Model
+from ..utils import linalg
 from ..kernels.kernel import Kernel
 from ..functions.function import Function
-from ..utils import linalg
 
-__all__ = ['ExactGP']
+from ..kernels import SE
+from ..functions import Constant
+
+__all__ = ['ExactGP', 'BasicGP']
 
 
 class ExactGP(Model):
@@ -91,7 +94,7 @@ class ExactGP(Model):
         if not grad:
             return mu, s2
 
-        # Get the prior gradients.
+        # Get the prior gradients. NOTE: this assumes a stationary kernel.
         dmu = None
         ds2 = np.zeros_like(X)
 
@@ -104,9 +107,6 @@ class ExactGP(Model):
             # real-valued. but their gradients are zeros anyway.
             dmu = np.zeros_like(X)
 
-        # NOTE: the above assumes a constant mean and stationary kernel (which
-        # we satisfy, but should we change either assumption...).
-
         if self.ndata > 0:
             dK = np.rollaxis(self._kernel.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
@@ -118,3 +118,23 @@ class ExactGP(Model):
             ds2 -= 2 * np.sum(LdK * LK, axis=1).T
 
         return mu, s2, dmu, ds2
+
+
+class BasicGP(ExactGP):
+    """
+    Thin wrapper around exact GP inference which only provides for Iso or ARD
+    kernels with constant mean.
+    """
+    def __init__(self, sn2, rho, ell, mean=0.0, ndim=None):
+        super(BasicGP, self).__init__(sn2, SE(rho, ell, ndim), Constant(mean))
+
+        # flatten the parameters and rename them
+        self._flatten({'kernel.rho': 'rho',
+                       'kernel.ell': 'ell',
+                       'mean.bias': 'mean'})
+
+    def __repr__(self):
+        if self._kernel._iso:
+            return super(BasicGP, self).__repr__(ndim=self._kernel.ndim)
+        else:
+            return super(BasicGP, self).__repr__()

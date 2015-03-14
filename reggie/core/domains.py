@@ -1,5 +1,5 @@
 """
-Helper code for dealing with domains.
+Definitions of parameter domains and transformations on those domains.
 """
 
 from __future__ import division

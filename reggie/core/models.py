@@ -1,5 +1,6 @@
 """
-Objects representing models which implement some form of supervised learning.
+Definition of a base model class which provides an interface for supervised
+learning over some latent function class.
 """
 
 from __future__ import division

@@ -1,5 +1,5 @@
 """
-Implementation of the squared-exponential kernels.
+Helper functions for distance calculations.
 """
 
 from __future__ import division
