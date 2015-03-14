@@ -82,13 +82,49 @@ class RealKernelTest(KernelTest):
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
 
+### INIT TESTS ################################################################
+
+def test_matern():
+    nt.assert_raises(ValueError, kernels.Matern, 1, 1, d=12)
+
+
 ### PER-INSTANCE TEST CLASSES #################################################
+
+class TestSEIso(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.SE(0.8, 0.3, ndim=2))
+
 
 class TestSEARD(RealKernelTest):
     def __init__(self):
         RealKernelTest.__init__(self, kernels.SE(0.8, [0.3, 0.4]))
 
 
-class TestSEIso(RealKernelTest):
+class TestMatern1Iso(RealKernelTest):
     def __init__(self):
-        RealKernelTest.__init__(self, kernels.SE(0.8, 0.3, ndim=2))
+        RealKernelTest.__init__(self, kernels.Matern(0.8, 0.3, d=1, ndim=2))
+
+
+class TestMatern3Iso(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.Matern(0.8, 0.3, d=3, ndim=2))
+
+
+class TestMatern5Iso(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.Matern(0.8, 0.3, d=5, ndim=2))
+
+
+class TestMatern1ARD(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.Matern(0.8, [0.3, 0.4], d=1))
+
+
+class TestMatern3ARD(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.Matern(0.8, [0.3, 0.4], d=3))
+
+
+class TestMatern5ARD(RealKernelTest):
+    def __init__(self):
+        RealKernelTest.__init__(self, kernels.Matern(0.8, [0.3, 0.4], d=5))

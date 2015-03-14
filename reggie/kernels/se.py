@@ -46,6 +46,9 @@ class SE(RealKernel):
         K = self._rho * np.exp(-D/2)
         return K
 
+    def get_dkernel(self, X1):
+        return np.full(len(X1), self._rho)
+
     def get_grad(self, X1, X2=None):
         X1, X2 = rescale(self._ell, X1, X2)
         D = dist(X1, X2)
@@ -58,9 +61,6 @@ class SE(RealKernel):
         else:
             for i, D in enumerate(dist_foreach(X1, X2)):
                 yield K * D / self._ell[i]      # derivative wrt ell (ard)
-
-    def get_dkernel(self, X1):
-        return np.full(len(X1), self._rho)
 
     def get_dgrad(self, X1):
         yield np.ones(len(X1))
