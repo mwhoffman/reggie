@@ -1,5 +1,5 @@
 """
-Exact inference for GP regression.
+Inference for GP regression.
 """
 
 from __future__ import division
@@ -17,12 +17,12 @@ from ..functions.function import Function
 from ..kernels import SE
 from ..functions import Constant
 
-__all__ = ['ExactGP', 'BasicGP']
+__all__ = ['GP', 'BasicGP']
 
 
-class ExactGP(Model):
+class GP(Model):
     """
-    Implementation of exact GP inference.
+    Implementation of GP inference.
     """
     def __init__(self, sn2, kernel, mean):
         self._sn2 = self._register('sn2', sn2, domain=POSITIVE)
@@ -120,7 +120,7 @@ class ExactGP(Model):
         return mu, s2, dmu, ds2
 
 
-class BasicGP(ExactGP):
+class BasicGP(GP):
     """
     Thin wrapper around exact GP inference which only provides for Iso or ARD
     kernels with constant mean.

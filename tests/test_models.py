@@ -12,7 +12,7 @@ import numpy as np
 import numpy.testing as nt
 import scipy.optimize as spop
 
-import reggie.gps as gps
+import reggie.models as models
 
 
 ### BASE TEST CLASSES #########################################################
@@ -72,6 +72,6 @@ class ModelTest(object):
 
 class TestGP(ModelTest):
     def __init__(self):
-        gp = gps.BasicGP(1, 1, [1., 1.])
+        gp = models.BasicGP(1, 1, [1., 1.])
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)

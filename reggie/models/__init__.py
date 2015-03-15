@@ -4,9 +4,10 @@ Objects which implement GP models.
 
 # pylint: disable=wildcard-import
 
-from .exact import *
+from .gp import *
 
-from . import exact
+from . import gp
 
 __all__ = []
-__all__ += exact.__all__
+__all__ += gp.__all__
+
