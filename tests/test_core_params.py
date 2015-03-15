@@ -73,18 +73,14 @@ class TestParams(object):
         obj = self.obj.copy(theta)
         nt.assert_equal(obj.get_params(), theta)
 
-    def test_flatten(self):
-        obj1 = self.obj.copy()
-        obj1._flatten()
+    def test_rename(self):
+        obj = self.obj.copy()
+        obj._rename({'a.a': 'a', 'a.b': 'b', 'b.a': 'c', 'b.b': 'd'})
 
-        obj2 = self.obj.copy()
-        obj2._flatten({'a.a': 'a', 'a.b': 'b', 'b.a': 'c', 'b.b': 'd'})
+        nt.assert_equal(obj.get_names(), ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
+                                          'c[3]', 'd'])
 
-        nt.assert_equal(obj1.get_names(), self.obj.get_names())
-        nt.assert_equal(obj2.get_names(), ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
-                                           'c[3]', 'd'])
-
-        nt.assert_raises(ValueError, obj2._flatten, {'a': 'asdf', 'b': 'asdf'})
+        nt.assert_raises(ValueError, obj._rename, {'a': 'asdf', 'b': 'asdf'})
 
     def test_transform(self):
         obj = self.obj.copy(self.obj.get_params(True), True)

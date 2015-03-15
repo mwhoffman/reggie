@@ -129,9 +129,9 @@ class BasicGP(ExactGP):
         super(BasicGP, self).__init__(sn2, SE(rho, ell, ndim), Constant(mean))
 
         # flatten the parameters and rename them
-        self._flatten({'kernel.rho': 'rho',
-                       'kernel.ell': 'ell',
-                       'mean.bias': 'mean'})
+        self._rename({'kernel.rho': 'rho',
+                      'kernel.ell': 'ell',
+                      'mean.bias': 'mean'})
 
     def __repr__(self):
         if self._kernel._iso:

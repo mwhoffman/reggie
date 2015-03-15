@@ -233,19 +233,17 @@ class Parameterized(object):
             obj.set_params(theta, transform)
         return obj
 
-    def _flatten(self, rename=None):
+    def _rename(self, names):
         """
-        Flatten the set of parameters associated with this object. Ultimately
-        this should have no outward effect unless `rename` is given as a
-        dictionary mapping requested parameters to new names. This allows for
-        aliasing parameters (see BasicGP for an example).
+        Rename the parameters associated with this object. The `names`
+        parameter should be a dictionary such that `names['foo']` is the new
+        name of the parameter foo.
         """
-        rename = dict() if rename is None else rename
-        if len(set(rename.values())) < len(rename):
+        if len(set(names.values())) < len(names):
             raise ValueError('assigning multiple parameters to the same name')
         params = []
         for name, param in self.__walk_params():
-            params.append((rename.get(name, name), param))
+            params.append((names.get(name, name), param))
         self.__params = collections.OrderedDict(params)
 
     def _register(self, name, param, klass=None, domain=REAL, shape=()):
