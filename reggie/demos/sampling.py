@@ -21,6 +21,7 @@ if __name__ == '__main__':
 
     gp.set_block('rho', 1)
     gp.set_block('mean', 2)
+    gp.set_block('ell', 3)
 
     # add data and optimize
     gp.add_data(data['X'], data['y'])
@@ -28,6 +29,8 @@ if __name__ == '__main__':
 
     # sample hyperparameters
     mcmc = rg.MetaMCMC(gp, n=1000, rng=None)
+    samples = mcmc.get_samples()
+    names = mcmc.get_names()
 
     # optimize and plot
     pl.figure(1)
@@ -41,3 +44,9 @@ if __name__ == '__main__':
     pl.axis(ymax=3, ymin=-2)
     pl.title('MCMC')
     pl.draw()
+
+    pl.figure(2)
+    rg.plotting.plot_pairs(samples, names)
+
+    pl.figure(3)
+    rg.plotting.plot_chain(samples, names)
