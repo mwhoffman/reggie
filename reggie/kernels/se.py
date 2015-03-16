@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from .kernel import RealKernel
+from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
 from ..core.domains import POSITIVE
 

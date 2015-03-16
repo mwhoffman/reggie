@@ -11,7 +11,7 @@ from __future__ import print_function
 import numpy as np
 import numpy.testing as nt
 
-import reggie.core.models as models
+import reggie.models._core as models
 
 
 class TmpModel(models.Model):

@@ -10,10 +10,10 @@ import numpy as np
 import mwhutils.linalg as linalg
 
 from ..core.domains import POSITIVE
-from ..core.models import Model
-from ..kernels.kernel import Kernel
-from ..functions.function import Function
+from ..kernels._core import Kernel
+from ..functions._core import Function
 
+from ._core import Model
 from ..kernels import SE
 from ..functions import Constant
 

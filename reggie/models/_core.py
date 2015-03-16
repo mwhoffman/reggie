@@ -9,7 +9,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from .params import Parameterized
+from ..core.params import Parameterized
 from ..learning.optimization import optimize
 
 __all__ = ['Model']

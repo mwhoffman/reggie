@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from .function import Function
+from ._core import Function
 
 __all__ = ['Zero', 'Constant']
 
