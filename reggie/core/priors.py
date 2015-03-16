@@ -10,9 +10,9 @@ from __future__ import print_function
 
 import numpy as np
 import mwhutils.random as random
+import mwhutils.pretty as pretty
 
 from .domains import EPSILON
-from ..utils.pretty import repr_args
 
 __all__ = ['Uniform', 'LogNormal', 'Normal']
 
@@ -52,9 +52,9 @@ class Uniform(Prior):
             raise ValueError("malformed upper/lower bounds")
 
     def __repr__(self):
-        return repr_args(self,
-                         self.bounds[:, 0].squeeze(),
-                         self.bounds[:, 1].squeeze())
+        return pretty.repr_args(self,
+                                self.bounds[:, 0].squeeze(),
+                                self.bounds[:, 1].squeeze())
 
     def sample(self, size=None, rng=None):
         rng = random.rstate(rng)
@@ -83,7 +83,9 @@ class LogNormal(Prior):
         self.ndim = len(self._mu)
 
     def __repr__(self):
-        return repr_args(self, self._mu.squeeze(), self._s2.squeeze())
+        return pretty.repr_args(self,
+                                self._mu.squeeze(),
+                                self._s2.squeeze())
 
     def sample(self, size=None, rng=None):
         rng = random.rstate(rng)
@@ -121,7 +123,9 @@ class Normal(Prior):
         self.ndim = len(self._mu)
 
     def __repr__(self):
-        return repr_args(self, self._mu.squeeze(), self._s2.squeeze())
+        return pretty.repr_args(self,
+                                self._mu.squeeze(),
+                                self._s2.squeeze())
 
     def sample(self, size=None, rng=None):
         rng = random.rstate(rng)

@@ -11,7 +11,8 @@ if __name__ == '__main__':
     data = np.load(os.path.join(cdir, 'xy.npz'))
 
     gp = rg.BasicGP(0.1, 1.0, 0.1)
-    gp.add_data(data['X'], data['y'])
+    gp.add_data(data['X'][:2], data['y'][:2])
+    gp.add_data(data['X'][2:], data['y'][2:])
     gp.optimize()
 
     pl.figure(1)

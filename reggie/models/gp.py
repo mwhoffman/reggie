@@ -7,10 +7,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import mwhutils.linalg as linalg
 
 from ..core.domains import POSITIVE
 from ..core.models import Model
-from ..utils import linalg
 from ..kernels.kernel import Kernel
 from ..functions.function import Function
 
@@ -41,9 +41,11 @@ class GP(Model):
             self._L = linalg.cholesky(K)
             self._a = linalg.solve_triangular(self._L, r)
 
-        else:
-            self._L = None
-            self._a = None
+    def _updateinc(self, X, Y):
+        B = self._kernel.get_kernel(X, self._X)
+        C = linalg.add_diagonal(self._kernel.get_kernel(X), self._sn2)
+        r = Y - self._mean.get_function(X)
+        self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
     def get_loglike(self, grad=False):
         if self.ndata == 0:
