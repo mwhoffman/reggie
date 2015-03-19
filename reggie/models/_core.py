@@ -72,6 +72,9 @@ class Model(Parameterized):
         """
         Add a new set of input/output data to the model.
         """
+        X = np.array(X, copy=False, ndmin=2, dtype=float)
+        Y = np.array(Y, copy=False, ndmin=1, dtype=float)
+
         if self._X is None:
             self._X = X.copy()
             self._Y = Y.copy()
@@ -93,13 +96,26 @@ class Model(Parameterized):
         """
         self.set_params(optimize(self, True), True)
 
+    def sample(self, X, m=None, rng=None):
+        """
+        Sample from the model at points X.
+        """
+        raise NotImplementedError
+
     def get_loglike(self, grad=False):
         """
         Get the log-likelihood of the model (and its gradient if requested).
         """
         raise NotImplementedError
 
-    def get_posterior(self, X, grad=False, predictive=False):
+    def get_joint(self, X):
+        """
+        Get the first two moments of the marginal joint distribution evaluated
+        pair-wise between input points X.
+        """
+        raise NotImplementedError
+
+    def get_posterior(self, X, grad=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at
         input points X.

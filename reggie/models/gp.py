@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import mwhutils.linalg as linalg
+import mwhutils.random as random
 
 from ..core.domains import POSITIVE
 from ..kernels._core import Kernel
@@ -47,6 +48,17 @@ class GP(Model):
         r = Y - self._mean.get_function(X)
         self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
+    def sample(self, X, size=None, rng=None):
+        rng = random.rstate(rng)
+        m = 1 if (size is None) else size
+        n = len(X)
+
+        mu, Sigma = self.get_joint(X)
+        L = linalg.cholesky(Sigma)
+        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
+
+        return f.ravel() if (size is None) else f
+
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
@@ -75,23 +87,37 @@ class GP(Model):
 
         return lZ, dlZ
 
-    def get_posterior(self, X, grad=False, predictive=False):
+    def get_joint(self, X):
+        # grab the prior mean and covariance.
+        mu = self._mean.get_function(X)
+        Sigma = self._kernel.get_kernel(X)
+
+        if self.ndata > 0:
+            K = self._kernel.get_kernel(self._X, X)
+            V = linalg.solve_triangular(self._L, K)
+
+            # add the contribution to the mean coming from the posterior and
+            # subtract off the information gained in the posterior from the
+            # prior variance.
+            mu += np.dot(V.T, self._a)
+            Sigma -= np.dot(V.T, V)
+
+        return mu, Sigma
+
+    def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
         mu = self._mean.get_function(X)
         s2 = self._kernel.get_dkernel(X)
 
         if self.ndata > 0:
             K = self._kernel.get_kernel(self._X, X)
-            LK = linalg.solve_triangular(self._L, K)
+            V = linalg.solve_triangular(self._L, K)
 
             # add the contribution to the mean coming from the posterior and
             # subtract off the information gained in the posterior from the
             # prior variance.
-            mu += np.dot(LK.T, self._a)
-            s2 -= np.sum(LK**2, axis=0)
-
-        if predictive:
-            s2 += self._sn2
+            mu += np.dot(V.T, self._a)
+            s2 -= np.sum(V**2, axis=0)
 
         if not grad:
             return mu, s2
@@ -113,11 +139,11 @@ class GP(Model):
             dK = np.rollaxis(self._kernel.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 
-            LdK = linalg.solve_triangular(self._L, dK)
-            dmu += np.dot(LdK.T, self._a).reshape(X.shape)
+            dV = linalg.solve_triangular(self._L, dK)
+            dmu += np.dot(dV.T, self._a).reshape(X.shape)
 
-            LdK = np.rollaxis(np.reshape(LdK, (-1,) + X.shape), 2)
-            ds2 -= 2 * np.sum(LdK * LK, axis=1).T
+            dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
+            ds2 -= 2 * np.sum(dV * V, axis=1).T
 
         return mu, s2, dmu, ds2
 
