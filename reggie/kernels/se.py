@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import mwhutils.random as random
 
 from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
@@ -73,3 +74,9 @@ class SE(RealKernel):
         K = self._rho * np.exp(-0.5 * np.sum(D**2, axis=-1))
         G = -K[:, :, None] * D / self._ell
         return G
+
+    def sample_spectrum(self, N, rng=None):
+        rng = random.rstate(rng)
+        W = rng.randn(N, self.ndim) / self._ell
+        alpha = self._rho.copy()
+        return W, alpha

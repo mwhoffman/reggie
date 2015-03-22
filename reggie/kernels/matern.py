@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import mwhutils.random as random
 
 from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
@@ -91,3 +92,11 @@ class Matern(RealKernel):
             M = np.where(D < 1e-12, 0, S * self._g(D) / D)
         G = -M[:, :, None] * D1 / self._ell
         return G
+
+    def sample_spectrum(self, N, rng=None):
+        rng = random.rstate(rng)
+        a = self._d / 2.
+        g = np.tile(rng.gamma(a, 1/a, N), (self.ndim, 1)).T
+        W = (rng.randn(N, self.ndim) / self._ell) / np.sqrt(g)
+        alpha = self._rho.copy()
+        return W, alpha
