@@ -1,14 +1,16 @@
 import os
 import numpy as np
-import matplotlib.pyplot as pl
+import mwhutils.plotting as mp
 
 import reggie as rg
-import reggie.plotting
 
 
 if __name__ == '__main__':
     cdir = os.path.abspath(os.path.dirname(__file__))
     data = np.load(os.path.join(cdir, 'xy.npz'))
+
+    X = data['X']
+    Y = data['y']
 
     # create a model
     gp = rg.BasicGP(0.1, 1.0, 0.1)
@@ -32,21 +34,12 @@ if __name__ == '__main__':
     samples = mcmc.get_samples()
     names = mcmc.get_names()
 
-    # optimize and plot
-    pl.figure(1)
-    pl.subplot(121)
-    rg.plotting.plot_posterior(gp, draw=False)
-    pl.axis(ymax=3, ymin=-2)
-    pl.title('MAP')
+    x = np.linspace(X.min(), X.max(), 500)
+    mu, s2 = gp.get_posterior(x[:, None])
+    er = 2*np.sqrt(s2)
 
-    pl.subplot(122)
-    rg.plotting.plot_posterior(mcmc, draw=False)
-    pl.axis(ymax=3, ymin=-2)
-    pl.title('MCMC')
-    pl.draw()
-
-    pl.figure(2)
-    rg.plotting.plot_pairs(samples, names)
-
-    pl.figure(3)
-    rg.plotting.plot_chain(samples, names)
+    # plot
+    fig = mp.figure(1)
+    fig.plot_banded(x, mu, mu-er, mu+er)
+    fig.scatter(X.ravel(), Y)
+    fig.draw()
