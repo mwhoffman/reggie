@@ -78,5 +78,5 @@ class SE(RealKernel):
     def sample_spectrum(self, N, rng=None):
         rng = random.rstate(rng)
         W = rng.randn(N, self.ndim) / self._ell
-        alpha = self._rho.copy()
+        alpha = float(self._rho)
         return W, alpha

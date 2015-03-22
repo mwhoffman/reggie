@@ -81,6 +81,11 @@ class RealKernelTest(KernelTest):
 
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
+    def test_sample_spectrum(self):
+        W, alpha = self.kernel.sample_spectrum(100)
+        assert W.shape == (100, self.kernel.ndim)
+        assert isinstance(alpha, float)
+
 
 ### INIT TESTS ################################################################
 

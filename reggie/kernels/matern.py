@@ -98,5 +98,5 @@ class Matern(RealKernel):
         a = self._d / 2.
         g = np.tile(rng.gamma(a, 1/a, N), (self.ndim, 1)).T
         W = (rng.randn(N, self.ndim) / self._ell) / np.sqrt(g)
-        alpha = self._rho.copy()
+        alpha = float(self._rho)
         return W, alpha

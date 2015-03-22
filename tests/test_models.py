@@ -53,7 +53,6 @@ class ModelTest(object):
         # first check that we can even evaluate the posterior.
         X, _ = self.model.data
         _ = self.model.get_posterior(X)
-        _ = self.model.get_posterior(X, predictive=True)
 
         # check the mu gradients
         f = lambda x: self.model.get_posterior(x[None])[0]
