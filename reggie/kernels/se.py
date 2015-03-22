@@ -75,6 +75,15 @@ class SE(RealKernel):
         G = -K[:, :, None] * D / self._ell
         return G
 
+    def get_gradxy(self, X1, X2=None):
+        X1, X2 = rescale(self._ell, X1, X2)
+        D = diff(X1, X2)
+        K = self._rho * np.exp(-0.5 * np.sum(D**2, axis=-1))
+        D /= self._ell
+        M = np.eye(self.ndim) / self._ell**2 - D[:, :, None] * D[:, :, :, None]
+        G = M * K[:, :, None, None]
+        return G
+
     def sample_spectrum(self, N, rng=None):
         rng = random.rstate(rng)
         W = rng.randn(N, self.ndim) / self._ell

@@ -93,6 +93,9 @@ class Matern(RealKernel):
         G = -M[:, :, None] * D1 / self._ell
         return G
 
+    def get_gradxy(self, X1, X2=None):
+        raise NotImplementedError
+
     def sample_spectrum(self, N, rng=None):
         rng = random.rstate(rng)
         a = self._d / 2.
