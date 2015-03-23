@@ -96,7 +96,7 @@ class Model(Parameterized):
         """
         self.set_params(optimize(self, True), True)
 
-    def sample(self, X, m=None, rng=None):
+    def sample(self, X, m=None, latent=True, rng=None):
         """
         Sample from the model at points X.
         """

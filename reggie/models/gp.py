@@ -15,8 +15,8 @@ from ..kernels._core import Kernel
 from ..functions._core import Function
 
 from ._core import Model
-from ..kernels import SE
-from ..functions import Constant
+from .. import kernels
+from .. import functions
 
 __all__ = ['GP', 'BasicGP']
 
@@ -48,7 +48,7 @@ class GP(Model):
         r = Y - self._mean.get_function(X)
         self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
-    def sample(self, X, size=None, rng=None):
+    def sample(self, X, size=None, latent=True, rng=None):
         rng = random.rstate(rng)
         m = 1 if (size is None) else size
         n = len(X)
@@ -56,6 +56,9 @@ class GP(Model):
         mu, Sigma = self.get_joint(X)
         L = linalg.cholesky(Sigma)
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
+
+        if latent is False:
+            f += rng.normal(size=f.shape, scale=np.sqrt(self._sn2))
 
         return f.ravel() if (size is None) else f
 
@@ -153,8 +156,18 @@ class BasicGP(GP):
     Thin wrapper around exact GP inference which only provides for Iso or ARD
     kernels with constant mean.
     """
-    def __init__(self, sn2, rho, ell, mean=0.0, ndim=None):
-        super(BasicGP, self).__init__(sn2, SE(rho, ell, ndim), Constant(mean))
+    def __init__(self, sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
+        kernel = (
+            kernels.SE(rho, ell, ndim)        if (kernel == 'se') else
+            kernels.Matern(rho, ell, 1, ndim) if (kernel == 'matern1') else
+            kernels.Matern(rho, ell, 3, ndim) if (kernel == 'matern3') else
+            kernels.Matern(rho, ell, 5, ndim) if (kernel == 'matern5') else
+            None)
+
+        if kernel is None:
+            raise ValueError('Unknown kernel type')
+
+        super(BasicGP, self).__init__(sn2, kernel, functions.Constant(mean))
 
         # flatten the parameters and rename them
         self._rename({'kernel.rho': 'rho',
@@ -162,7 +175,9 @@ class BasicGP(GP):
                       'mean.bias': 'mean'})
 
     def __repr__(self):
+        kwargs = {}
         if self._kernel._iso:
-            return super(BasicGP, self).__repr__(ndim=self._kernel.ndim)
-        else:
-            return super(BasicGP, self).__repr__()
+            kwargs['ndim'] = self._kernel.ndim
+        if isinstance(self._kernel, kernels.Matern):
+            kwargs['kernel'] = 'matern{:d}'.format(self._kernel._d)
+        return super(BasicGP, self).__repr__(**kwargs)
