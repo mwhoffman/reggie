@@ -37,7 +37,7 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
 
         return model_, logp
 
-    for block in model.get_blocks():
+    for block in model.blocks:
         # sample a random direction
         direction = np.zeros_like(theta0)
         direction[block] = rng.randn(len(block))

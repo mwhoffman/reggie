@@ -307,6 +307,34 @@ class Parameterized(object):
         """
         return sum(param.nparams for _, param in self.__walk_params())
 
+    @property
+    def blocks(self):
+        """
+        Return a list whose ith element contains indices for the parameters
+        which make up the ith block.
+        """
+        blocks = dict()
+        a = 0
+        for _, param in self.__walk_params():
+            b = a + param.nparams
+            blocks.setdefault(param.block, []).extend(range(a, b))
+            a = b
+        return blocks.values()
+
+    @property
+    def names(self):
+        """
+        Return a list of names for each parameter.
+        """
+        names = []
+        for name, param in self.__walk_params():
+            if param.nparams == 1:
+                names.append(name)
+            else:
+                names.extend('{:s}[{:d}]'.format(name, n)
+                             for n in xrange(param.nparams))
+        return names
+
     def describe(self):
         """
         Describe the structure of the object in terms of its hyperparameters.
@@ -413,29 +441,3 @@ class Parameterized(object):
                 bounds[a:b] = param.bounds
             a = b
         return bounds
-
-    def get_blocks(self):
-        """
-        Return a list whose ith element contains indices for the parameters
-        which make up the ith block.
-        """
-        blocks = dict()
-        a = 0
-        for _, param in self.__walk_params():
-            b = a + param.nparams
-            blocks.setdefault(param.block, []).extend(range(a, b))
-            a = b
-        return blocks.values()
-
-    def get_names(self):
-        """
-        Return a list of names for each parameter.
-        """
-        names = []
-        for name, param in self.__walk_params():
-            if param.nparams == 1:
-                names.append(name)
-            else:
-                names.extend('{:s}[{:d}]'.format(name, n)
-                             for n in xrange(param.nparams))
-        return names

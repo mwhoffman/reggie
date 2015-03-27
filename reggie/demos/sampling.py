@@ -32,7 +32,6 @@ if __name__ == '__main__':
     # sample hyperparameters
     mcmc = rg.MetaMCMC(gp, n=1000, rng=None)
     samples = mcmc.get_samples()
-    names = mcmc.get_names()
 
     x = np.linspace(X.min(), X.max(), 500)
     mu, s2 = gp.get_posterior(x[:, None])

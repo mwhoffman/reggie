@@ -77,8 +77,8 @@ class TestParams(object):
         obj = self.obj.copy()
         obj._rename({'a.a': 'a', 'a.b': 'b', 'b.a': 'c', 'b.b': 'd'})
 
-        nt.assert_equal(obj.get_names(), ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
-                                          'c[3]', 'd'])
+        nt.assert_equal(obj.names, ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
+                                    'c[3]', 'd'])
 
         nt.assert_raises(ValueError, obj._rename, {'a': 'asdf', 'b': 'asdf'})
 
@@ -129,11 +129,11 @@ class TestParams(object):
         self.obj.set_block('a.a', 1)
         self.obj.set_block('a.b', 1)
         blocks1 = {(0, 1), tuple(range(2, 7))}
-        blocks2 = set(map(tuple, self.obj.get_blocks()))
+        blocks2 = set(map(tuple, self.obj.blocks))
         nt.assert_equal(blocks1, blocks2)
 
     def test_names(self):
         names = ['a.a', 'a.b']
         names.extend(['b.a[{:d}]'.format(i) for i in xrange(4)])
         names.append('b.b')
-        nt.assert_equal(self.obj.get_names(), names)
+        nt.assert_equal(self.obj.names, names)
