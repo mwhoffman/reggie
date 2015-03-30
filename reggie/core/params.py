@@ -335,6 +335,18 @@ class Parameterized(object):
                              for n in xrange(param.nparams))
         return names
 
+    @property
+    def gradfactor(self):
+        """
+        Return the gradient factor which should be multipled by any gradient in
+        order to define a gradient in the transformed space.
+        """
+        if self.nparams == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.get_gradfactor()
+                             for _, param in self.__walk_params())
+
     def describe(self):
         """
         Describe the structure of the object in terms of its hyperparameters.
@@ -390,17 +402,6 @@ class Parameterized(object):
             return np.array([])
         else:
             return np.hstack(param.get_params(transform)
-                             for _, param in self.__walk_params())
-
-    def get_gradfactor(self):
-        """
-        Return the gradient factor which should be multipled by any gradient in
-        order to define a gradient in the transformed space.
-        """
-        if self.nparams == 0:
-            return np.array([])
-        else:
-            return np.hstack(param.get_gradfactor()
                              for _, param in self.__walk_params())
 
     def get_logprior(self, grad=False):

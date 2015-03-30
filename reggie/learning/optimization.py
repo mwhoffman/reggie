@@ -43,7 +43,7 @@ def optimize(model, raw=False):
             # which gives us the gradient in the transformed space (via the
             # chain rule)
             logp = -(logp0 + logp1)
-            dlogp = -(dlogp0 + dlogp1) * model.get_gradfactor()
+            dlogp = -(dlogp0 + dlogp1) * model.gradfactor
 
             return logp, dlogp
 

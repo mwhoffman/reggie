@@ -18,9 +18,8 @@ if __name__ == '__main__':
 
     x = np.linspace(X.min(), X.max(), 500)
     mu, s2 = gp.get_posterior(x[:, None])
-    er = 2*np.sqrt(s2)
 
     fig = mp.figure(1)
-    fig.plot_banded(x, mu, mu-er, mu+er)
+    fig.plot_banded(x, mu, 2*np.sqrt(s2))
     fig.scatter(X.ravel(), Y)
     fig.draw()

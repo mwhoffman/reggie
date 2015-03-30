@@ -33,12 +33,16 @@ if __name__ == '__main__':
     mcmc = rg.MetaMCMC(gp, n=1000, rng=None)
     samples = mcmc.get_samples()
 
+    # evaluate the posterior at some test points
     x = np.linspace(X.min(), X.max(), 500)
     mu, s2 = gp.get_posterior(x[:, None])
-    er = 2*np.sqrt(s2)
 
-    # plot
+    # plot the posterior
     fig = mp.figure(1)
-    fig.plot_banded(x, mu, mu-er, mu+er)
+    fig.plot_banded(x, mu, 2*np.sqrt(s2))
     fig.scatter(X.ravel(), Y)
+    fig.draw()
+
+    # plot the samples
+    fig = mp.plot_pairs(mcmc.get_samples(), mcmc.names, fig=2)
     fig.draw()

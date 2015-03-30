@@ -107,8 +107,8 @@ class TestParams(object):
         nt.assert_equal(self.empty.get_params(), np.array([]))
 
     def test_gradfactor(self):
-        nt.assert_equal(self.obj.get_gradfactor(), np.ones(self.obj.nparams))
-        nt.assert_equal(self.empty.get_gradfactor(), np.array([]))
+        nt.assert_equal(self.obj.gradfactor, np.ones(self.obj.nparams))
+        nt.assert_equal(self.empty.gradfactor, np.array([]))
 
     def test_priors(self):
         set_prior = self.obj.set_prior
