@@ -80,15 +80,22 @@ class Model(Parameterized):
             self._Y = Y.copy()
             self._update()
 
-        elif hasattr(self, '_updateinc'):
-            self._updateinc(X, Y)
-            self._X = np.r_[self._X, X]
-            self._Y = np.r_[self._Y, Y]
-
         else:
-            self._X = np.r_[self._X, X]
-            self._Y = np.r_[self._Y, Y]
-            self._update()
+            try:
+                self._updateinc(X, Y)
+                self._X = np.r_[self._X, X]
+                self._Y = np.r_[self._Y, Y]
+
+            except NotImplementedError:
+                self._X = np.r_[self._X, X]
+                self._Y = np.r_[self._Y, Y]
+                self._update()
+
+    def _updateinc(self, X, Y):
+        """
+        Update the sufficient-statistics of a model given new data instances.
+        """
+        raise NotImplementedError
 
     def optimize(self):
         """
@@ -105,13 +112,6 @@ class Model(Parameterized):
     def get_loglike(self, grad=False):
         """
         Get the log-likelihood of the model (and its gradient if requested).
-        """
-        raise NotImplementedError
-
-    def get_joint(self, X):
-        """
-        Get the first two moments of the marginal joint distribution evaluated
-        pair-wise between input points X.
         """
         raise NotImplementedError
 

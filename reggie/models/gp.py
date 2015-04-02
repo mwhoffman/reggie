@@ -48,20 +48,6 @@ class GP(Model):
         r = Y - self._mean.get_function(X)
         self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
-    def sample(self, X, size=None, latent=True, rng=None):
-        rng = random.rstate(rng)
-        m = 1 if (size is None) else size
-        n = len(X)
-
-        mu, Sigma = self.get_joint(X)
-        L = linalg.cholesky(Sigma)
-        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
-
-        if latent is False:
-            f += rng.normal(size=f.shape, scale=np.sqrt(self._sn2))
-
-        return f.ravel() if (size is None) else f
-
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
@@ -90,22 +76,32 @@ class GP(Model):
 
         return lZ, dlZ
 
-    def get_joint(self, X):
-        # grab the prior mean and covariance.
+    def sample(self, X, size=None, latent=True, rng=None):
+        rng = random.rstate(rng)
+        m = 1 if (size is None) else size
+        n = len(X)
+
+        # get the prior.
         mu = self._mean.get_function(X)
         Sigma = self._kernel.get_kernel(X)
 
+        # get the posterior.
         if self.ndata > 0:
             K = self._kernel.get_kernel(self._X, X)
             V = linalg.solve_triangular(self._L, K)
-
-            # add the contribution to the mean coming from the posterior and
-            # subtract off the information gained in the posterior from the
-            # prior variance.
             mu += np.dot(V.T, self._a)
             Sigma -= np.dot(V.T, V)
 
-        return mu, Sigma
+        # compute the cholesky and sample from this multivariate Normal. Note
+        # that here we add a small amount to the diagonal since this
+        # corresponds to sampling from the noise-free process.
+        L = linalg.cholesky(linalg.add_diagonal(Sigma, 1e-10))
+        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
+
+        if latent is False:
+            f += rng.normal(size=f.shape, scale=np.sqrt(self._sn2))
+
+        return f.ravel() if (size is None) else f
 
     def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
@@ -158,7 +154,7 @@ class BasicGP(GP):
     """
     def __init__(self, sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
         kernel = (
-            kernels.SE(rho, ell, ndim)        if (kernel == 'se') else
+            kernels.SE(rho, ell, ndim) if (kernel == 'se') else
             kernels.Matern(rho, ell, 1, ndim) if (kernel == 'matern1') else
             kernels.Matern(rho, ell, 3, ndim) if (kernel == 'matern3') else
             kernels.Matern(rho, ell, 5, ndim) if (kernel == 'matern5') else
