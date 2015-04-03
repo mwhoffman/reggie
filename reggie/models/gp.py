@@ -10,13 +10,15 @@ import numpy as np
 import mwhutils.linalg as linalg
 import mwhutils.random as random
 
-from ..core.domains import POSITIVE
+from ..likelihoods._core import Likelihood
 from ..kernels._core import Kernel
 from ..functions._core import Function
 
-from ._core import Model
+from .. import likelihoods
 from .. import kernels
 from .. import functions
+
+from ._core import Model
 
 __all__ = ['GP', 'BasicGP']
 
@@ -25,9 +27,9 @@ class GP(Model):
     """
     Implementation of GP inference.
     """
-    def __init__(self, sn2, kernel, mean):
-        self._sn2 = self._register('sn2', sn2, domain=POSITIVE)
-        self._kernel = self._register('kernel', kernel, Kernel)
+    def __init__(self, like, kern, mean):
+        self._like = self._register('like', like, Likelihood)
+        self._kern = self._register('kern', kern, Kernel)
         self._mean = self._register('mean', mean, Function)
 
         # cached sufficient statistics
@@ -36,15 +38,15 @@ class GP(Model):
 
     def _update(self):
         if self.ndata > 0:
-            K = self._kernel.get_kernel(self._X)
-            K = linalg.add_diagonal(K, self._sn2)
+            K = self._kern.get_kernel(self._X)
+            K = linalg.add_diagonal(K, self._like._sn2)
             r = self._Y - self._mean.get_function(self._X)
             self._L = linalg.cholesky(K)
             self._a = linalg.solve_triangular(self._L, r)
 
     def _updateinc(self, X, Y):
-        B = self._kernel.get_kernel(X, self._X)
-        C = linalg.add_diagonal(self._kernel.get_kernel(X), self._sn2)
+        B = self._kern.get_kernel(X, self._X)
+        C = linalg.add_diagonal(self._kern.get_kernel(X), self._like._sn2)
         r = Y - self._mean.get_function(X)
         self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
@@ -68,7 +70,7 @@ class GP(Model):
 
             # derivative wrt each kernel hyperparameter.
             [-0.5*np.sum(Q*dK)
-             for dK in self._kernel.get_grad(self._X)],
+             for dK in self._kern.get_grad(self._X)],
 
             # derivative wrt the mean.
             [np.dot(dmu, alpha)
@@ -83,11 +85,11 @@ class GP(Model):
 
         # get the prior.
         mu = self._mean.get_function(X)
-        Sigma = self._kernel.get_kernel(X)
+        Sigma = self._kern.get_kernel(X)
 
         # get the posterior.
         if self.ndata > 0:
-            K = self._kernel.get_kernel(self._X, X)
+            K = self._kern.get_kernel(self._X, X)
             V = linalg.solve_triangular(self._L, K)
             mu += np.dot(V.T, self._a)
             Sigma -= np.dot(V.T, V)
@@ -99,17 +101,17 @@ class GP(Model):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f += rng.normal(size=f.shape, scale=np.sqrt(self._sn2))
+            f += rng.normal(size=f.shape, scale=np.sqrt(self._like._sn2))
 
         return f.ravel() if (size is None) else f
 
     def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
         mu = self._mean.get_function(X)
-        s2 = self._kernel.get_dkernel(X)
+        s2 = self._kern.get_dkernel(X)
 
         if self.ndata > 0:
-            K = self._kernel.get_kernel(self._X, X)
+            K = self._kern.get_kernel(self._X, X)
             V = linalg.solve_triangular(self._L, K)
 
             # add the contribution to the mean coming from the posterior and
@@ -135,7 +137,7 @@ class GP(Model):
             dmu = np.zeros_like(X)
 
         if self.ndata > 0:
-            dK = np.rollaxis(self._kernel.get_gradx(X, self._X), 1)
+            dK = np.rollaxis(self._kern.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 
             dV = linalg.solve_triangular(self._L, dK)
@@ -153,7 +155,12 @@ class BasicGP(GP):
     kernels with constant mean.
     """
     def __init__(self, sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
-        kernel = (
+        # create the mean/likelihood objects
+        like = likelihoods.Gaussian(sn2)
+        mean = functions.Constant(mean)
+
+        # create a kernel object which depends on the string identifier
+        kern = (
             kernels.SE(rho, ell, ndim) if (kernel == 'se') else
             kernels.Matern(rho, ell, 1, ndim) if (kernel == 'matern1') else
             kernels.Matern(rho, ell, 3, ndim) if (kernel == 'matern3') else
@@ -163,17 +170,18 @@ class BasicGP(GP):
         if kernel is None:
             raise ValueError('Unknown kernel type')
 
-        super(BasicGP, self).__init__(sn2, kernel, functions.Constant(mean))
+        super(BasicGP, self).__init__(like, kern, mean)
 
         # flatten the parameters and rename them
-        self._rename({'kernel.rho': 'rho',
-                      'kernel.ell': 'ell',
+        self._rename({'like.sn2': 'sn2',
+                      'kern.rho': 'rho',
+                      'kern.ell': 'ell',
                       'mean.bias': 'mean'})
 
     def __repr__(self):
         kwargs = {}
-        if self._kernel._iso:
-            kwargs['ndim'] = self._kernel.ndim
-        if isinstance(self._kernel, kernels.Matern):
-            kwargs['kernel'] = 'matern{:d}'.format(self._kernel._d)
+        if self._kern._iso:
+            kwargs['ndim'] = self._kern.ndim
+        if isinstance(self._kern, kernels.Matern):
+            kwargs['kernel'] = 'matern{:d}'.format(self._kern._d)
         return super(BasicGP, self).__repr__(**kwargs)
