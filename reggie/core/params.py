@@ -294,12 +294,6 @@ class Parameterized(object):
         # object so that it can be used by the actual model
         return param
 
-    def _update(self):
-        """
-        Update any internal parameters (sufficient statistics, etc.).
-        """
-        pass
-
     @property
     def nparams(self):
         """
@@ -363,14 +357,12 @@ class Parameterized(object):
         Set the value of the named parameter.
         """
         self.__get_param(key).set_params(np.array(theta, ndmin=1, copy=False))
-        self._update()
 
     def set_prior(self, key, prior, *args, **kwargs):
         """
         Set the prior of the named parameter.
         """
         self.__get_param(key).set_prior(prior, *args, **kwargs)
-        self._update()
 
     def set_block(self, key, block):
         """
@@ -392,7 +384,6 @@ class Parameterized(object):
             b = a + param.nparams
             param.set_params(theta[a:b], transform)
             a = b
-        self._update()
 
     def get_params(self, transform=False):
         """

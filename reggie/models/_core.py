@@ -91,12 +91,6 @@ class Model(Parameterized):
                 self._Y = np.r_[self._Y, Y]
                 self._update()
 
-    def _updateinc(self, X, Y):
-        """
-        Update the sufficient-statistics of a model given new data instances.
-        """
-        raise NotImplementedError
-
     def optimize(self):
         """
         Set the parameters to their MAP estimates.
@@ -121,3 +115,29 @@ class Model(Parameterized):
         input points X.
         """
         raise NotImplementedError
+
+    def _update(self):
+        """
+        Update any internal parameters (sufficient statistics, etc.).
+        """
+        pass
+
+    def _updateinc(self, X, Y):
+        """
+        Update the sufficient-statistics of a model given new data instances.
+        """
+        raise NotImplementedError
+
+    def set_prior(self, key, prior, *args, **kwargs):
+        super(Model, self).set_prior(key, prior, *args, **kwargs)
+        # NOTE: changing the prior doesn't necessarily change the parameters,
+        # so we don't necessarily need to update, but this is not too costly.
+        self._update()
+
+    def set_param(self, key, theta):
+        super(Model, self).set_param(key, theta)
+        self._update()
+
+    def set_params(self, theta, transform=False):
+        super(Model, self).set_params(theta, transform)
+        self._update()
