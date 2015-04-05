@@ -1,5 +1,5 @@
 """
-Objects which implement models.
+Objects which implement GP models.
 """
 
 # pylint: disable=wildcard-import
@@ -10,4 +10,3 @@ from . import gp
 
 __all__ = []
 __all__ += gp.__all__
-
