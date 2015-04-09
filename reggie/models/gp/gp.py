@@ -39,14 +39,15 @@ class GP(Model):
     def _update(self):
         if self.ndata > 0:
             K = self._kern.get_kernel(self._X)
-            K = linalg.add_diagonal(K, self._like._sn2)
+            K = linalg.add_diagonal(K, self._like.get_variance())
             r = self._Y - self._mean.get_function(self._X)
             self._L = linalg.cholesky(K)
             self._a = linalg.solve_triangular(self._L, r)
 
     def _updateinc(self, X, Y):
         B = self._kern.get_kernel(X, self._X)
-        C = linalg.add_diagonal(self._kern.get_kernel(X), self._like._sn2)
+        C = linalg.add_diagonal(self._kern.get_kernel(X),
+                                self._like.get_variance())
         r = Y - self._mean.get_function(X)
         self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
 
@@ -101,9 +102,12 @@ class GP(Model):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f += rng.normal(size=f.shape, scale=np.sqrt(self._like._sn2))
+            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
 
-        return f.ravel() if (size is None) else f
+        if size is None:
+            f = f.ravel()
+
+        return f
 
     def get_posterior(self, X, grad=False):
         # grab the prior mean and variance.
