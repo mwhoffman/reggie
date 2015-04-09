@@ -13,46 +13,27 @@ import mwhutils.random as random
 from ..likelihoods._core import Likelihood
 from ..kernels._core import Kernel
 from ..functions._core import Function
+from .gpinference._core import Inference
 
 from .. import likelihoods
 from .. import kernels
 from .. import functions
 
 from ._core import Model
+from .gpinference import Exact
 
 __all__ = ['GP', 'BasicGP']
-
-
-class ExactInference(object):
-    def __init__(self):
-        self.init()
-
-    def init(self):
-        self.L = None
-        self.a = None
-
-    def update(self, like, kern, mean, X, Y):
-        K = linalg.add_diagonal(kern.get_kernel(X), like.get_variance())
-        r = Y - mean.get_function(X)
-        self.L = linalg.cholesky(K)
-        self.a = linalg.solve_triangular(self.L, r)
-
-    def updateinc(self, like, kern, mean, X_, X, Y):
-        B = kern.get_kernel(X, X_)
-        C = linalg.add_diagonal(kern.get_kernel(X), like.get_variance())
-        r = Y - mean.get_function(X)
-        self.L, self.a = linalg.cholesky_update(self.L, B, C, self.a, r)
 
 
 class GP(Model):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean):
+    def __init__(self, like, kern, mean, post):
         self._like = self._register('like', like, Likelihood)
         self._kern = self._register('kern', kern, Kernel)
         self._mean = self._register('mean', mean, Function)
-        self._post = ExactInference()
+        self._post = self._register('post', post, Inference)
 
     def _update(self):
         if self.ndata == 0:
@@ -187,7 +168,7 @@ class BasicGP(GP):
         if kernel is None:
             raise ValueError('Unknown kernel type')
 
-        super(BasicGP, self).__init__(like, kern, mean)
+        super(BasicGP, self).__init__(like, kern, mean, Exact())
 
         # flatten the parameters and rename them
         self._rename({'like.sn2': 'sn2',
