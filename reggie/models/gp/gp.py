@@ -23,6 +23,27 @@ from ... import functions
 __all__ = ['GP', 'BasicGP']
 
 
+class ExactInference(object):
+    def __init__(self):
+        self.init()
+
+    def init(self):
+        self.L = None
+        self.a = None
+
+    def update(self, like, kern, mean, X, Y):
+        K = linalg.add_diagonal(kern.get_kernel(X), like.get_variance())
+        r = Y - mean.get_function(X)
+        self.L = linalg.cholesky(K)
+        self.a = linalg.solve_triangular(self.L, r)
+
+    def updateinc(self, like, kern, mean, X_, X, Y):
+        B = kern.get_kernel(X, X_)
+        C = linalg.add_diagonal(kern.get_kernel(X), like.get_variance())
+        r = Y - mean.get_function(X)
+        self.L, self.a = linalg.cholesky_update(self.L, B, C, self.a, r)
+
+
 class GP(Model):
     """
     Implementation of GP inference.
@@ -31,39 +52,31 @@ class GP(Model):
         self._like = self._register('like', like, Likelihood)
         self._kern = self._register('kern', kern, Kernel)
         self._mean = self._register('mean', mean, Function)
-
-        # cached sufficient statistics
-        self._L = None
-        self._a = None
+        self._post = ExactInference()
 
     def _update(self):
-        if self.ndata > 0:
-            K = self._kern.get_kernel(self._X)
-            K = linalg.add_diagonal(K, self._like.get_variance())
-            r = self._Y - self._mean.get_function(self._X)
-            self._L = linalg.cholesky(K)
-            self._a = linalg.solve_triangular(self._L, r)
+        if self.ndata == 0:
+            self._post.init()
+        else:
+            self._post.update(self._like, self._kern, self._mean,
+                              self._X, self._Y)
 
     def _updateinc(self, X, Y):
-        B = self._kern.get_kernel(X, self._X)
-        C = linalg.add_diagonal(self._kern.get_kernel(X),
-                                self._like.get_variance())
-        r = Y - self._mean.get_function(X)
-        self._L, self._a = linalg.cholesky_update(self._L, B, C, self._a, r)
+        self._post.updateinc(self._like, self._kern, self._mean, self._X, X, Y)
 
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
 
-        lZ = -0.5 * np.inner(self._a, self._a)
+        lZ = -0.5 * np.inner(self._post.a, self._post.a)
         lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
-        lZ -= np.sum(np.log(self._L.diagonal()))
+        lZ -= np.sum(np.log(self._post.L.diagonal()))
 
         if not grad:
             return lZ
 
-        alpha = linalg.solve_triangular(self._L, self._a, trans=1)
-        Q = linalg.cholesky_inverse(self._L) - np.outer(alpha, alpha)
+        alpha = linalg.solve_triangular(self._post.L, self._post.a, trans=1)
+        Q = linalg.cholesky_inverse(self._post.L) - np.outer(alpha, alpha)
 
         dlZ = np.r_[
             # derivative wrt the likelihood's noise term.
@@ -91,8 +104,8 @@ class GP(Model):
         # get the posterior.
         if self.ndata > 0:
             K = self._kern.get_kernel(self._X, X)
-            V = linalg.solve_triangular(self._L, K)
-            mu += np.dot(V.T, self._a)
+            V = linalg.solve_triangular(self._post.L, K)
+            mu += np.dot(V.T, self._post.a)
             Sigma -= np.dot(V.T, V)
 
         # compute the cholesky and sample from this multivariate Normal. Note
@@ -116,12 +129,12 @@ class GP(Model):
 
         if self.ndata > 0:
             K = self._kern.get_kernel(self._X, X)
-            V = linalg.solve_triangular(self._L, K)
+            V = linalg.solve_triangular(self._post.L, K)
 
             # add the contribution to the mean coming from the posterior and
             # subtract off the information gained in the posterior from the
             # prior variance.
-            mu += np.dot(V.T, self._a)
+            mu += np.dot(V.T, self._post.a)
             s2 -= np.sum(V**2, axis=0)
 
         if not grad:
@@ -144,8 +157,8 @@ class GP(Model):
             dK = np.rollaxis(self._kern.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 
-            dV = linalg.solve_triangular(self._L, dK)
-            dmu += np.dot(dV.T, self._a).reshape(X.shape)
+            dV = linalg.solve_triangular(self._post.L, dK)
+            dmu += np.dot(dV.T, self._post.a).reshape(X.shape)
 
             dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
             ds2 -= 2 * np.sum(dV * V, axis=1).T
