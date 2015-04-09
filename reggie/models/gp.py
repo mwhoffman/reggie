@@ -10,15 +10,15 @@ import numpy as np
 import mwhutils.linalg as linalg
 import mwhutils.random as random
 
-from ...likelihoods._core import Likelihood
-from ...kernels._core import Kernel
-from ...functions._core import Function
+from ..likelihoods._core import Likelihood
+from ..kernels._core import Kernel
+from ..functions._core import Function
 
-from .._core import Model
+from .. import likelihoods
+from .. import kernels
+from .. import functions
 
-from ... import likelihoods
-from ... import kernels
-from ... import functions
+from ._core import Model
 
 __all__ = ['GP', 'BasicGP']
 
