@@ -43,7 +43,17 @@ class GP(Model):
                               self._X, self._Y)
 
     def _updateinc(self, X, Y):
-        self._post.updateinc(self._like, self._kern, self._mean, self._X, X, Y)
+        try:
+            self._post.updateinc(self._like, self._kern, self._mean,
+                                 self._X, X, Y)
+        except NotImplementedError:
+            raise
+
+    def switch_inference(self, post):
+        gp = GP(self._like, self._kern, self._mean, post)
+        if self.ndata > 0:
+            gp.add_data(self._X, self._Y)
+        return gp
 
     def get_loglike(self, grad=False):
         if self.ndata == 0:
