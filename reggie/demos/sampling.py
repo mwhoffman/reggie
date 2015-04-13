@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # evaluate the posterior at some test points
     x = np.linspace(X.min(), X.max(), 500)
-    mu, s2 = gp.get_posterior(x[:, None])
+    mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
     fig = mp.figure()

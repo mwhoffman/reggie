@@ -109,7 +109,7 @@ class Model(Parameterized):
         """
         raise NotImplementedError
 
-    def get_posterior(self, X, grad=False):
+    def predict(self, X, grad=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at
         input points X.

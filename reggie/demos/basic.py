@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # get the posterior moments
     x = np.linspace(X.min(), X.max(), 500)
-    mu, s2 = gp.get_posterior(x[:, None])
+    mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
     fig = mp.figure()

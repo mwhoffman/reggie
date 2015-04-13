@@ -31,7 +31,7 @@ class ModelTest(object):
         model = self.model.copy(reset=True)
         model.add_data(X[:n], Y[:n])
         model.add_data(X[n:], Y[n:])
-        nt.assert_allclose(model.get_posterior(X), self.model.get_posterior(X))
+        nt.assert_allclose(model.predict(X), self.model.predict(X))
 
     def test_get_loglike(self):
         # first make sure we can call it with zero data.
@@ -49,20 +49,20 @@ class ModelTest(object):
         g2 = spop.approx_fprime(x, f, 1e-8)
         nt.assert_allclose(g1, g2, rtol=1e-6, atol=1e-6)
 
-    def test_get_posterior(self):
+    def test_predict(self):
         # first check that we can even evaluate the posterior.
         X, _ = self.model.data
-        _ = self.model.get_posterior(X)
+        _ = self.model.predict(X)
 
         # check the mu gradients
-        f = lambda x: self.model.get_posterior(x[None])[0]
-        G1 = self.model.get_posterior(X, grad=True)[2]
+        f = lambda x: self.model.predict(x[None])[0]
+        G1 = self.model.predict(X, grad=True)[2]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
         # check the s2 gradients
-        f = lambda x: self.model.get_posterior(x[None])[1]
-        G1 = self.model.get_posterior(X, grad=True)[3]
+        f = lambda x: self.model.predict(x[None])[1]
+        G1 = self.model.predict(X, grad=True)[3]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 

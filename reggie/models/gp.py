@@ -113,7 +113,7 @@ class GP(Model):
 
         return f
 
-    def get_posterior(self, X, grad=False):
+    def predict(self, X, grad=False):
         # grab the prior mean and variance.
         mu = self._mean.get_function(X)
         s2 = self._kern.get_dkernel(X)
