@@ -9,6 +9,7 @@ from __future__ import print_function
 
 from ...core.params import Parameterized
 
+
 __all__ = ['Inference']
 
 
@@ -16,6 +17,9 @@ class Inference(Parameterized):
     """
     Base interface for inference methods.
     """
+    def __init__(self):
+        self.init()
+
     def init(self):
         """Initialize the posterior parameterization."""
         raise NotImplementedError

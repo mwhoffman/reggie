@@ -49,12 +49,6 @@ class GP(Model):
         except NotImplementedError:
             raise
 
-    def switch_inference(self, post):
-        gp = GP(self._like, self._kern, self._mean, post)
-        if self.ndata > 0:
-            gp.add_data(self._X, self._Y)
-        return gp
-
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
@@ -83,78 +77,74 @@ class GP(Model):
 
         return lZ, dlZ
 
-    def sample(self, X, size=None, latent=True, rng=None):
-        rng = random.rstate(rng)
-        m = 1 if (size is None) else size
-        n = len(X)
+    # NOTE: in defining the prediction method it is useful to keep in mind that
+    # the inference methods which compute the posterior statistics should have
+    # one of the following properties:
+    # - (L, a) consisting of the cholesky decomposition of the kernel matrix
+    #   and a is the solution to La=r where r are the residuals; or
+    # - (Q, alpha) where Q is the inverse of the kernel matrix K and
+    #   alpha is the solution to K alpha=r.
 
-        # get the prior.
+    def _predict(self, X, joint=False, grad=False):
+        # get the prior mean and variance
         mu = self._mean.get_function(X)
-        Sigma = self._kern.get_kernel(X)
+        s2 = self._kern.get_kernel(X) if joint else self._kern.get_dkernel(X)
 
-        # get the posterior.
+        # if we have data compute the posterior.
         if self.ndata > 0:
             K = self._kern.get_kernel(self._X, X)
-            V = linalg.solve_triangular(self._post.L, K)
-            mu += np.dot(V.T, self._post.a)
-            Sigma -= np.dot(V.T, V)
-
-        # compute the cholesky and sample from this multivariate Normal. Note
-        # that here we add a small amount to the diagonal since this
-        # corresponds to sampling from the noise-free process.
-        L = linalg.cholesky(linalg.add_diagonal(Sigma, 1e-10))
-        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
-
-        if latent is False:
-            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
-
-        if size is None:
-            f = f.ravel()
-
-        return f
-
-    def predict(self, X, grad=False):
-        # grab the prior mean and variance.
-        mu = self._mean.get_function(X)
-        s2 = self._kern.get_dkernel(X)
-
-        if self.ndata > 0:
-            K = self._kern.get_kernel(self._X, X)
-            V = linalg.solve_triangular(self._post.L, K)
-
-            # add the contribution to the mean coming from the posterior and
-            # subtract off the information gained in the posterior from the
-            # prior variance.
-            mu += np.dot(V.T, self._post.a)
-            s2 -= np.sum(V**2, axis=0)
+            if hasattr(self._post, 'L'):
+                V = linalg.solve_triangular(self._post.L, K)
+                mu += np.dot(V.T, self._post.a)
+                s2 -= np.dot(V.T, V) if joint else np.sum(V**2, axis=0)
+            else:
+                raise NotImplementedError
 
         if not grad:
             return mu, s2
 
-        # Get the prior gradients. NOTE: this assumes a stationary kernel.
-        dmu = None
-        ds2 = np.zeros_like(X)
+        if joint:
+            raise ValueError('cannot compute gradients of joint predictions')
 
-        if hasattr(self._mean, 'get_gradx'):
-            # if the mean has real-valued inputs then it should define this
-            # method to get the gradient of the mean function wrt its inputs.
-            dmu = self._mean.get_gradx(X)
-        else:
-            # however, constant functions can take any inputs, not just
-            # real-valued. but their gradients are zeros anyway.
-            dmu = np.zeros_like(X)
+        # Get the prior gradients. NOTE: this assumes a stationary kernel.
+        dmu = self._mean.get_gradx(X)
+        ds2 = np.zeros_like(X)
 
         if self.ndata > 0:
             dK = np.rollaxis(self._kern.get_gradx(X, self._X), 1)
             dK = dK.reshape(self.ndata, -1)
 
-            dV = linalg.solve_triangular(self._post.L, dK)
-            dmu += np.dot(dV.T, self._post.a).reshape(X.shape)
+            if hasattr(self._post, 'L'):
+                dV = linalg.solve_triangular(self._post.L, dK)
+                dmu += np.dot(dV.T, self._post.a).reshape(X.shape)
+                dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
+                ds2 -= 2 * np.sum(dV * V, axis=1).T
 
-            dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
-            ds2 -= 2 * np.sum(dV * V, axis=1).T
+            else:
+                raise NotImplementedError
 
         return mu, s2, dmu, ds2
+
+    def sample(self, X, size=None, latent=True, rng=None):
+        mu, Sigma = self._predict(X, joint=True)
+        rng = random.rstate(rng)
+
+        L = linalg.cholesky(linalg.add_diagonal(Sigma, 1e-10))
+        m = 1 if (size is None) else size
+        n = len(X)
+        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
+
+        if latent is False:
+            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
+        if size is None:
+            f = f.ravel()
+        return f
+
+    def predict(self, X, grad=False):
+        if grad:
+            return self._predict(X, grad=True)
+        else:
+            return self._predict(X)
 
 
 class BasicGP(GP):
