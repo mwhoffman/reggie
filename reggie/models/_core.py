@@ -78,18 +78,11 @@ class Model(Parameterized):
         if self._X is None:
             self._X = X.copy()
             self._Y = Y.copy()
-            self._update()
-
         else:
-            try:
-                self._updateinc(X, Y)
-                self._X = np.r_[self._X, X]
-                self._Y = np.r_[self._Y, Y]
+            self._X = np.r_[self._X, X]
+            self._Y = np.r_[self._Y, Y]
 
-            except NotImplementedError:
-                self._X = np.r_[self._X, X]
-                self._Y = np.r_[self._Y, Y]
-                self._update()
+        self._update()
 
     def optimize(self):
         """
@@ -121,12 +114,6 @@ class Model(Parameterized):
         Update any internal parameters (sufficient statistics, etc.).
         """
         pass
-
-    def _updateinc(self, X, Y):
-        """
-        Update the sufficient-statistics of a model given new data instances.
-        """
-        raise NotImplementedError
 
     def set_prior(self, key, prior, *args, **kwargs):
         super(Model, self).set_prior(key, prior, *args, **kwargs)

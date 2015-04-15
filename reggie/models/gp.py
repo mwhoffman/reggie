@@ -42,48 +42,11 @@ class GP(Model):
             self._post.update(self._like, self._kern, self._mean,
                               self._X, self._Y)
 
-    def _updateinc(self, X, Y):
-        try:
-            self._post.updateinc(self._like, self._kern, self._mean,
-                                 self._X, X, Y)
-        except NotImplementedError:
-            raise
-
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
-
-        lZ = -0.5 * np.inner(self._post.a, self._post.a)
-        lZ -= 0.5 * np.log(2 * np.pi) * self.ndata
-        lZ -= np.sum(np.log(self._post.L.diagonal()))
-
-        if not grad:
-            return lZ
-
-        alpha = linalg.solve_triangular(self._post.L, self._post.a, trans=1)
-        Q = linalg.cholesky_inverse(self._post.L) - np.outer(alpha, alpha)
-
-        dlZ = np.r_[
-            # derivative wrt the likelihood's noise term.
-            -0.5*np.trace(Q),
-
-            # derivative wrt each kernel hyperparameter.
-            [-0.5*np.sum(Q*dK)
-             for dK in self._kern.get_grad(self._X)],
-
-            # derivative wrt the mean.
-            [np.dot(dmu, alpha)
-             for dmu in self._mean.get_grad(self._X)]]
-
-        return lZ, dlZ
-
-    # NOTE: in defining the prediction method it is useful to keep in mind that
-    # the inference methods which compute the posterior statistics should have
-    # one of the following properties:
-    # - (L, a) consisting of the cholesky decomposition of the kernel matrix
-    #   and a is the solution to La=r where r are the residuals; or
-    # - (Q, alpha) where Q is the inverse of the kernel matrix K and
-    #   alpha is the solution to K alpha=r.
+        else:
+            return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance

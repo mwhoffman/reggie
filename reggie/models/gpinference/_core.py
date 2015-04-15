@@ -27,7 +27,3 @@ class Inference(Parameterized):
     def update(self, like, kern, mean, X, Y):
         """Update the posterior given a complete set of data."""
         raise NotImplementedError
-
-    def updateinc(self, like, kern, mean, X_, X, Y):
-        """Update the posterior incrementally."""
-        raise NotImplementedError

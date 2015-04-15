@@ -18,23 +18,6 @@ class TmpModel(models.Model):
     pass
 
 
-class TmpModelInc(models.Model):
-    def __init__(self):
-        self.updated = False
-
-    def _updateinc(self, X, Y):
-        self.updated = True
-
-
-def test_updateinc():
-    model = TmpModelInc()
-    X = np.random.rand(5, 2)
-    Y = np.random.rand(5)
-    model.add_data(X, Y)
-    model.add_data(X, Y)
-    assert model.updated
-
-
 class TestModels(object):
     def __init__(self):
         self.model = TmpModel()
