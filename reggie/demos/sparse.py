@@ -18,4 +18,23 @@ if __name__ == '__main__':
     gp.add_data(X, Y)
     gp.optimize()
 
-    gp = gp.switch_inference(rg.models.gpinference.FITC(U))
+    # create a sparse model
+    gp = rg.GP(gp._like, gp._kern, gp._mean, rg.models.gpinference.FITC(U))
+    gp.add_data(X, Y)
+    gp.optimize()
+
+    # get the posterior moments
+    x = np.linspace(X.min(), X.max(), 500)
+    mu, s2 = gp.predict(x[:, None])
+
+    # plot the posterior
+    fig = mp.figure()
+    fig.hold()
+    fig.plot_banded(x, mu, 2*np.sqrt(s2))
+    fig.scatter(X.ravel(), Y)
+    fig.set_xlabel('inputs, X')
+    fig.set_ylabel('outputs, Y')
+    fig.draw()
+
+    # show the figure
+    mp.show()
