@@ -73,15 +73,6 @@ class TestParams(object):
         obj = self.obj.copy(theta)
         nt.assert_equal(obj.get_params(), theta)
 
-    def test_rename(self):
-        obj = self.obj.copy()
-        obj._rename({'a.a': 'a', 'a.b': 'b', 'b.a': 'c', 'b.b': 'd'})
-
-        nt.assert_equal(obj.names, ['a', 'b', 'c[0]', 'c[1]', 'c[2]',
-                                    'c[3]', 'd'])
-
-        nt.assert_raises(ValueError, obj._rename, {'a': 'asdf', 'b': 'asdf'})
-
     def test_transform(self):
         obj = self.obj.copy(self.obj.get_params(True), True)
         nt.assert_equal(obj.get_params(), self.obj.get_params())

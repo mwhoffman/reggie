@@ -17,23 +17,24 @@ from .. import functions
 from ._core import Model
 from . import gpinference
 
-__all__ = ['GP', 'BasicGP']
+__all__ = ['GP', 'make_gp']
 
 
 class GP(Model):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, Inference, *args, **kwargs):
-        # look up the inference method if necessary
-        if isinstance(Inference, basestring):
-            Inference = gpinference.INFERENCE[Inference]
+    def __init__(self, like, kern, mean, inference, *args, **kwargs):
+        # look up the inference method and initialize the posterior
+        inference = gpinference.INFERENCE[inference]
+        post = inference(like, kern, mean, *args, **kwargs)
 
-        # initialize the posterior
-        post = Inference(like, kern, mean, *args, **kwargs)
-
-        # register any hyperparameters
+        # register hyperparameters
         self._post = self._register(None, post)
+
+    def __repr__(self):
+        inference = type(self._post).__name__.lower()
+        return super(GP, self).__repr__(inference=inference)
 
     def _update(self):
         if self.ndata == 0:
@@ -41,9 +42,9 @@ class GP(Model):
         else:
             self._post.update(self._X, self._Y)
 
-    def switch_inference(self, Inference, *args, **kwargs):
+    def switch_inference(self, inference, *args, **kwargs):
         gp = GP(self._post.like, self._post.kern, self._post.mean,
-                Inference, *args, **kwargs)
+                inference, *args, **kwargs)
         if self.ndata > 0:
             gp.add_data(self._X, self._Y)
         return gp
@@ -135,39 +136,20 @@ class GP(Model):
             return self._predict(X)
 
 
-class BasicGP(GP):
-    """
-    Thin wrapper around exact GP inference which only provides for Iso or ARD
-    kernels with constant mean.
-    """
-    def __init__(self, sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
-        # create the mean/likelihood objects
-        like = likelihoods.Gaussian(sn2)
-        mean = functions.Constant(mean)
+def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
+    # create the mean/likelihood objects
+    like = likelihoods.Gaussian(sn2)
+    mean = functions.Constant(mean)
 
-        # create a kernel object which depends on the string identifier
-        kern = (
-            kernels.SE(rho, ell, ndim) if (kernel == 'se') else
-            kernels.Matern(rho, ell, 1, ndim) if (kernel == 'matern1') else
-            kernels.Matern(rho, ell, 3, ndim) if (kernel == 'matern3') else
-            kernels.Matern(rho, ell, 5, ndim) if (kernel == 'matern5') else
-            None)
+    # create a kernel object which depends on the string identifier
+    kern = (
+        kernels.SE(rho, ell, ndim) if (kernel == 'se') else
+        kernels.Matern(rho, ell, 1, ndim) if (kernel == 'matern1') else
+        kernels.Matern(rho, ell, 3, ndim) if (kernel == 'matern3') else
+        kernels.Matern(rho, ell, 5, ndim) if (kernel == 'matern5') else
+        None)
 
-        if kernel is None:
-            raise ValueError('Unknown kernel type')
+    if kernel is None:
+        raise ValueError('Unknown kernel type')
 
-        super(BasicGP, self).__init__(like, kern, mean, 'exact')
-
-        # flatten the parameters and rename them
-        self._rename({'like.sn2': 'sn2',
-                      'kern.rho': 'rho',
-                      'kern.ell': 'ell',
-                      'mean.bias': 'mean'})
-
-    def __repr__(self):
-        kwargs = {}
-        if self._post.kern._iso:
-            kwargs['ndim'] = self._post.kern.ndim
-        if isinstance(self._post.kern, kernels.Matern):
-            kwargs['kernel'] = 'matern{:d}'.format(self._post.kern._d)
-        return super(BasicGP, self).__repr__(**kwargs)
+    return GP(like, kern, mean, 'exact')
