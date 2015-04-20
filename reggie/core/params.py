@@ -209,7 +209,7 @@ class Parameterized(object):
             raise ValueError('Unknown parameter: {:s}'.format(key))
         return node
 
-    def __walk_params(self):
+    def _walk_params(self):
         """
         Walk the set of parameters, yielding the Parameter objects via a
         depth-first traversal.
@@ -217,7 +217,7 @@ class Parameterized(object):
         for name, param in self.__params.items():
             if isinstance(param, Parameterized):
                 # pylint: disable=W0212
-                for name_, param_ in param.__walk_params():
+                for name_, param_ in param._walk_params():
                     yield name + '.' + name_, param_
             else:
                 yield name, param
@@ -242,7 +242,7 @@ class Parameterized(object):
         if len(set(names.values())) < len(names):
             raise ValueError('assigning multiple parameters to the same name')
         params = []
-        for name, param in self.__walk_params():
+        for name, param in self._walk_params():
             params.append((names.get(name, name), param))
         self.__params = collections.OrderedDict(params)
 
@@ -262,9 +262,16 @@ class Parameterized(object):
                              .format(name, klass.__name__))
 
         if isinstance(param, Parameterized):
-            # copy the parameterized object and store it.
+            # copy the parameterized object
             param = param.copy()
-            self.__params[name] = param
+
+            # if no name is given then store each of the sub-parameters;
+            # otherwise store the parameter itself.
+            if name is None:
+                for n, p in param._walk_params():
+                    self.__params[n] = p
+            else:
+                self.__params[name] = param
 
         else:
             try:
@@ -299,7 +306,7 @@ class Parameterized(object):
         """
         Return the number of parameters for this object.
         """
-        return sum(param.nparams for _, param in self.__walk_params())
+        return sum(param.nparams for _, param in self._walk_params())
 
     @property
     def blocks(self):
@@ -309,7 +316,7 @@ class Parameterized(object):
         """
         blocks = dict()
         a = 0
-        for _, param in self.__walk_params():
+        for _, param in self._walk_params():
             b = a + param.nparams
             blocks.setdefault(param.block, []).extend(range(a, b))
             a = b
@@ -321,7 +328,7 @@ class Parameterized(object):
         Return a list of names for each parameter.
         """
         names = []
-        for name, param in self.__walk_params():
+        for name, param in self._walk_params():
             if param.nparams == 1:
                 names.append(name)
             else:
@@ -339,7 +346,7 @@ class Parameterized(object):
             return np.array([])
         else:
             return np.hstack(param.get_gradfactor()
-                             for _, param in self.__walk_params())
+                             for _, param in self._walk_params())
 
     def describe(self):
         """
@@ -347,7 +354,7 @@ class Parameterized(object):
         """
         headers = ['name', 'value', 'domain', 'prior', 'block']
         table = []
-        for name, param in self.__walk_params():
+        for name, param in self._walk_params():
             prior = '-' if param.prior is None else str(param.prior)
             table.append([name, str(param), param.domain, prior, param.block])
         print(tabulate.tabulate(table, headers, numalign=None))
@@ -380,7 +387,7 @@ class Parameterized(object):
         if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
         a = 0
-        for _, param in self.__walk_params():
+        for _, param in self._walk_params():
             b = a + param.nparams
             param.set_params(theta[a:b], transform)
             a = b
@@ -393,7 +400,7 @@ class Parameterized(object):
             return np.array([])
         else:
             return np.hstack(param.get_params(transform)
-                             for _, param in self.__walk_params())
+                             for _, param in self._walk_params())
 
     def get_logprior(self, grad=False):
         """
@@ -402,7 +409,7 @@ class Parameterized(object):
         """
         if not grad:
             return sum(param.get_logprior(False)
-                       for _, param in self.__walk_params())
+                       for _, param in self._walk_params())
 
         elif self.nparams == 0:
             return 0, np.array([])
@@ -410,7 +417,7 @@ class Parameterized(object):
         else:
             logp = 0.0
             dlogp = []
-            for _, param in self.__walk_params():
+            for _, param in self._walk_params():
                 elem = param.get_logprior(True)
                 logp += elem[0]
                 dlogp.append(elem[1])
@@ -423,7 +430,7 @@ class Parameterized(object):
         """
         bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
         a = 0
-        for _, param in self.__walk_params():
+        for _, param in self._walk_params():
             b = a + param.nparams
             if transform:
                 bounds[a:b] = [

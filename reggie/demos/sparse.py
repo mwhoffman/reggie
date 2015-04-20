@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     X = data['X']
     Y = data['y']
-    U = np.linspace(X.min(), X.max(), 10)[:, None]
+    U = np.linspace(X.min(), X.max(), 100)[:, None]
 
     # create the GP and optimize the model
     gp = rg.BasicGP(0.1, 1.0, 0.1)
@@ -19,8 +19,7 @@ if __name__ == '__main__':
     gp.optimize()
 
     # create a sparse model
-    gp = rg.GP(gp._like, gp._kern, gp._mean, rg.models.gpinference.FITC(U))
-    gp.add_data(X, Y)
+    gp = gp.switch_inference('fitc', U)
     gp.optimize()
 
     # get the posterior moments

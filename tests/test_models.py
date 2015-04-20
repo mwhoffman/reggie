@@ -78,8 +78,7 @@ class TestGP(ModelTest):
 
 class TestGP_FITC(ModelTest):
     def __init__(self):
-        post = models.gpinference.FITC(np.random.rand(50, 2))
         gp = models.BasicGP(0.7, 1, [1., 1.])
-        gp = models.GP(gp._like, gp._kern, gp._mean, post)
+        gp = gp.switch_inference('fitc', np.random.rand(50, 2))
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)

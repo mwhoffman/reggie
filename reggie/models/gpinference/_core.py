@@ -8,6 +8,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from ...core.params import Parameterized
+from ...likelihoods._core import Likelihood
+from ...kernels._core import Kernel
+from ...functions._core import Function
 
 
 __all__ = ['Inference']
@@ -17,13 +20,21 @@ class Inference(Parameterized):
     """
     Base interface for inference methods.
     """
-    def __init__(self):
+    def __init__(self, like, kern, mean):
+        self.like = self._register('like', like, Likelihood)
+        self.kern = self._register('kern', kern, Kernel)
+        self.mean = self._register('mean', mean, Function)
         self.init()
 
     def init(self):
-        """Initialize the posterior parameterization."""
-        raise NotImplementedError
+        """
+        Initialize the posterior parameterization.
+        """
+        self.lZ = None
+        self.dlZ = None
 
-    def update(self, like, kern, mean, X, Y):
-        """Update the posterior given a complete set of data."""
+    def update(self, X, Y):
+        """
+        Update the posterior given a complete set of data.
+        """
         raise NotImplementedError

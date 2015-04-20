@@ -16,14 +16,14 @@ __all__ = ['Exact']
 
 class Exact(Inference):
     def init(self):
+        super(Exact, self).init()
         self.L = None
         self.a = None
-        self.lZ = None
-        self.dlZ = None
 
-    def update(self, like, kern, mean, X, Y):
-        K = la.add_diagonal(kern.get_kernel(X), like.get_variance())
-        r = Y - mean.get_function(X)
+    def update(self, X, Y):
+        K = la.add_diagonal(self.kern.get_kernel(X), 
+                            self.like.get_variance())
+        r = Y - self.mean.get_function(X)
 
         # the posterior parameterization
         L = la.cholesky(K)
@@ -43,12 +43,10 @@ class Exact(Inference):
             -0.5*np.trace(Q),
 
             # derivative wrt each kernel hyperparameter.
-            [-0.5*np.sum(Q*dK)
-             for dK in kern.get_grad(X)],
+            [-0.5*np.sum(Q*dK) for dK in self.kern.get_grad(X)],
 
             # derivative wrt the mean.
-            [np.dot(dmu, alpha)
-             for dmu in mean.get_grad(X)]]
+            [np.dot(dmu, alpha) for dmu in self.mean.get_grad(X)]]
 
         self.L = L
         self.a = a

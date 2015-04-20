@@ -10,17 +10,12 @@ import numpy as np
 import mwhutils.linalg as la
 import mwhutils.random as random
 
-from ..likelihoods._core import Likelihood
-from ..kernels._core import Kernel
-from ..functions._core import Function
-from .gpinference._core import Inference
-
 from .. import likelihoods
 from .. import kernels
 from .. import functions
 
 from ._core import Model
-from .gpinference import Exact
+from . import gpinference
 
 __all__ = ['GP', 'BasicGP']
 
@@ -29,18 +24,29 @@ class GP(Model):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, post):
-        self._like = self._register('like', like, Likelihood)
-        self._kern = self._register('kern', kern, Kernel)
-        self._mean = self._register('mean', mean, Function)
-        self._post = self._register('post', post, Inference)
+    def __init__(self, like, kern, mean, Inference, *args, **kwargs):
+        # look up the inference method if necessary
+        if isinstance(Inference, basestring):
+            Inference = gpinference.INFERENCE[Inference]
+
+        # initialize the posterior
+        post = Inference(like, kern, mean, *args, **kwargs)
+
+        # register any hyperparameters
+        self._post = self._register(None, post)
 
     def _update(self):
         if self.ndata == 0:
             self._post.init()
         else:
-            self._post.update(self._like, self._kern, self._mean,
-                              self._X, self._Y)
+            self._post.update(self._X, self._Y)
+
+    def switch_inference(self, Inference, *args, **kwargs):
+        gp = GP(self._post.like, self._post.kern, self._post.mean,
+                Inference, *args, **kwargs)
+        if self.ndata > 0:
+            gp.add_data(self._X, self._Y)
+        return gp
 
     def get_loglike(self, grad=False):
         if self.ndata == 0:
@@ -50,13 +56,14 @@ class GP(Model):
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
-        mu = self._mean.get_function(X)
-        s2 = self._kern.get_kernel(X) if joint else self._kern.get_dkernel(X)
+        mu = self._post.mean.get_function(X)
+        s2 = (self._post.kern.get_kernel(X) if joint else
+              self._post.kern.get_dkernel(X))
 
         # if we have data compute the posterior.
         if self.ndata > 0:
             if hasattr(self._post, 'U'):
-                K = self._kern.get_kernel(self._post.U, X)
+                K = self._post.kern.get_kernel(self._post.U, X)
                 V1 = la.solve_triangular(self._post.L1, K)
                 V2 = la.solve_triangular(self._post.L2, K)
                 mu += np.dot(V2.T, self._post.a)
@@ -64,7 +71,7 @@ class GP(Model):
                       (np.sum(V2**2, axis=0) - np.sum(V1**2, axis=0))
 
             else:
-                K = self._kern.get_kernel(self._X, X)
+                K = self._post.kern.get_kernel(self._X, X)
                 V = la.solve_triangular(self._post.L, K)
                 mu += np.dot(V.T, self._post.a)
                 s2 -= np.dot(V.T, V) if joint else np.sum(V**2, axis=0)
@@ -76,13 +83,13 @@ class GP(Model):
             raise ValueError('cannot compute gradients of joint predictions')
 
         # Get the prior gradients. NOTE: this assumes a stationary kernel.
-        dmu = self._mean.get_gradx(X)
+        dmu = self._post.mean.get_gradx(X)
         ds2 = np.zeros_like(X)
 
         if self.ndata > 0:
             if hasattr(self._post, 'U'):
                 m = self._post.U.shape[0]
-                dK = np.rollaxis(self._kern.get_gradx(X, self._post.U), 1)
+                dK = np.rollaxis(self._post.kern.get_gradx(X, self._post.U), 1)
                 dK = dK.reshape(m, -1)
 
                 # compute the mean
@@ -97,7 +104,7 @@ class GP(Model):
                 ds2 -= 2 * np.sum(dV1 * V1, axis=1).T
 
             else:
-                dK = np.rollaxis(self._kern.get_gradx(X, self._X), 1)
+                dK = np.rollaxis(self._post.kern.get_gradx(X, self._X), 1)
                 dK = dK.reshape(self.ndata, -1)
                 dV = la.solve_triangular(self._post.L, dK)
                 dmu += np.dot(dV.T, self._post.a).reshape(X.shape)
@@ -149,7 +156,7 @@ class BasicGP(GP):
         if kernel is None:
             raise ValueError('Unknown kernel type')
 
-        super(BasicGP, self).__init__(like, kern, mean, Exact())
+        super(BasicGP, self).__init__(like, kern, mean, 'exact')
 
         # flatten the parameters and rename them
         self._rename({'like.sn2': 'sn2',
@@ -159,8 +166,8 @@ class BasicGP(GP):
 
     def __repr__(self):
         kwargs = {}
-        if self._kern._iso:
-            kwargs['ndim'] = self._kern.ndim
-        if isinstance(self._kern, kernels.Matern):
-            kwargs['kernel'] = 'matern{:d}'.format(self._kern._d)
+        if self._post.kern._iso:
+            kwargs['ndim'] = self._post.kern.ndim
+        if isinstance(self._post.kern, kernels.Matern):
+            kwargs['kernel'] = 'matern{:d}'.format(self._post.kern._d)
         return super(BasicGP, self).__repr__(**kwargs)
