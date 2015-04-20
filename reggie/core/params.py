@@ -48,6 +48,20 @@ def _deepcopy(obj, memo):
     return ret
 
 
+def _ndprint(arr):
+    if arr.shape == ():
+        value = '{:.2f}'.format(arr.flat[0])
+    else:
+        value = '[' * arr.ndim
+        value += ', '.join('{:.2f}'.format(_) for _ in arr.flat[:2])
+        if arr.size > 3:
+            value += ', ..., '
+        if arr.size > 2:
+            value += '{:.2f}'.format(arr.flat[-1])
+        value += ']' * arr.ndim
+    return value
+
+
 class Parameter(object):
     """
     Representation of a parameter vector.
@@ -63,22 +77,14 @@ class Parameter(object):
         # note this will raise an error if we're out of bounds.
         self.set_params(self.value.ravel())
 
-    def __repr__(self):
-        if self.value.shape == ():
-            return np.array2string(self.value.ravel(),
-                                   precision=PRECISION,
-                                   suppress_small=True)[1:-1].strip()
-        else:
-            return np.array2string(self.value,
-                                   separator=',',
-                                   precision=PRECISION,
-                                   suppress_small=True)
-
     def __deepcopy__(self, memo):
         # this gets around a bug where copy.deepcopy(array) does not return an
         # array when called on a 0-dimensional object.
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
+
+    def __repr__(self):
+        return _ndprint(self.value)
 
     @property
     def nparams(self):
@@ -176,12 +182,26 @@ class Parameterized(object):
         self.__params = collections.OrderedDict()
         return self
 
-    def __repr__(self, **kwargs):
+    def __info__(self):
+        return []
+
+    def __repr__(self):
         typename = self.__class__.__name__
-        parts = self.__params.items() + kwargs.items()
-        parts = ['{:s}={:s}'.format(n, repr(p)) for n, p in parts]
-        if any(isinstance(p, Parameterized) for p in self.__params.values()):
-            sep = ',\n' + ' ' * (1+len(typename))
+        items = self.__params.items() + self.__info__()
+        parts = []
+        for name, param in items:
+            if isinstance(param, np.ndarray):
+                value = _ndprint(param)
+            else:
+                value = repr(param)
+            parts.append('{:s}={:s}'.format(name, value))
+        nintro = len(typename) + 1
+        nchars = nintro + 1 + sum(len(_)+2 for _ in parts)
+        split = any('\n' in _ for _ in parts)
+        if nchars > 80 or split:
+            sep = '\n' + ' ' * nintro
+            parts = [sep.join(_.split('\n')) for _ in parts]
+            sep = ',' + sep
         else:
             sep = ', '
         return typename + '(' + sep.join(parts) + ')'

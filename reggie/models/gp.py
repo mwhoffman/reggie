@@ -32,9 +32,11 @@ class GP(Model):
         # register hyperparameters
         self._post = self._register(None, post)
 
-    def __repr__(self):
-        inference = type(self._post).__name__.lower()
-        return super(GP, self).__repr__(inference=inference)
+    def __info__(self):
+        info = super(GP, self).__info__()
+        info.append(('inference', type(self._post).__name__.lower()))
+        info.extend(self._post.__info__())
+        return info
 
     def _update(self):
         if self.ndata == 0:

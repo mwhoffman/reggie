@@ -33,13 +33,13 @@ class Matern(RealKernel):
         self._iso = ndim is not None
         self.ndim = ndim if self._iso else self._ell.size
 
-    def __repr__(self):
-        kwargs = {}
+    def __info__(self):
+        info = super(Matern, self).__info__()
         if self._iso:
-            kwargs['ndim'] = self.ndim
+            info.append(('ndim', self.ndim))
         if self._d != 3:
-            kwargs['d'] = self._d
-        return super(Matern, self).__repr__(**kwargs)
+            info.append(('d', self._d))
+        return info
 
     def _f(self, r):
         return (

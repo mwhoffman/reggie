@@ -35,11 +35,11 @@ class SE(RealKernel):
         self._iso = ndim is not None
         self.ndim = ndim if self._iso else self._ell.size
 
-    def __repr__(self):
+    def __info__(self):
+        info = super(SE, self).__info__()
         if self._iso:
-            return super(SE, self).__repr__(ndim=self.ndim)
-        else:
-            return super(SE, self).__repr__()
+            info.append(('ndim', self.ndim))
+        return info
 
     def get_kernel(self, X1, X2=None):
         X1, X2 = rescale(self._ell, X1, X2)

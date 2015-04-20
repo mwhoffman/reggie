@@ -20,6 +20,11 @@ class FITC(Inference):
         super(FITC, self).__init__(like, kern, mean)
         self.U = np.array(U, ndmin=2, dtype=float, copy=True)
 
+    def __info__(self):
+        info = super(FITC, self).__info__()
+        info.append(('U', self.U))
+        return info
+
     def init(self):
         super(FITC, self).init()
         self.L1 = None
