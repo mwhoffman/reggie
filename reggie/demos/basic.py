@@ -22,12 +22,13 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure()
+    fig = mp.figure(1)
     fig.hold()
     fig.plot_banded(x, mu, 2*np.sqrt(s2))
     fig.scatter(X.ravel(), Y)
-    fig.set_xlabel('inputs, X')
-    fig.set_ylabel('outputs, Y')
+    fig.xlabel = 'inputs, X'
+    fig.ylabel = 'outputs, Y'
+    fig.title = 'Basic GP'
     fig.draw()
 
     # show the figure
