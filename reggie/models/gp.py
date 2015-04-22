@@ -71,12 +71,13 @@ class GP(Model):
                 K = self._post.kern.get_kernel(self._X, X)
 
             # compute the mean and variance
-            V = la.solve_triangular(self._post.L, K)
+            w = self._post.w.reshape(-1, 1)
+            V = la.solve_triangular(self._post.L, w*K)
             mu += np.dot(K.T, self._post.a)
             s2 -= np.dot(V.T, V) if joint else np.sum(V**2, axis=0)
 
             # add on a correction factor if necessary
-            if hasattr(self._post, 'C'):
+            if self._post.C is not None:
                 VC = la.solve_triangular(self._post.C, K)
                 s2 += np.dot(VC.T, VC) if joint else np.sum(VC**2, axis=0)
 
@@ -110,7 +111,7 @@ class GP(Model):
             ds2 -= 2 * np.sum(dV * V, axis=1).T
 
             # add in a correction factor
-            if hasattr(self._post, 'C'):
+            if self._post.C is not None:
                 dVC = la.solve_triangular(self._post.C, dK)
                 dVC = np.rollaxis(np.reshape(dVC, (-1,) + X.shape), 2)
                 ds2 += 2 * np.sum(dVC * VC, axis=1).T

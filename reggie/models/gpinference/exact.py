@@ -15,11 +15,6 @@ __all__ = ['Exact']
 
 
 class Exact(Inference):
-    def init(self):
-        super(Exact, self).init()
-        self.L = None
-        self.a = None
-
     def update(self, X, Y):
         K = la.add_diagonal(self.kern.get_kernel(X), self.like.get_variance())
         r = Y - self.mean.get_function(X)
@@ -46,5 +41,6 @@ class Exact(Inference):
 
         self.L = L
         self.a = a
+        self.w = np.ones_like(a)
         self.lZ = lZ
         self.dlZ = dlZ

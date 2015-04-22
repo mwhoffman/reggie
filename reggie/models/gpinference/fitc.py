@@ -25,12 +25,6 @@ class FITC(Inference):
         info.append(('U', self.U))
         return info
 
-    def init(self):
-        super(FITC, self).init()
-        self.L = None
-        self.C = None
-        self.a = None
-
     def update(self, X, Y):
         sn2 = self.like.get_variance()
         su2 = sn2 / 1e6
@@ -99,6 +93,7 @@ class FITC(Inference):
         self.L = Luu
         self.C = np.dot(Luu, L)
         self.a = la.solve_cholesky(self.C, np.dot(Kux, r/ell))
+        self.w = np.ones_like(self.a)
 
         # save the log-likelihood and its gradient
         self.lZ = lZ

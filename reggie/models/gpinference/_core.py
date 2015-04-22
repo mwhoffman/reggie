@@ -30,6 +30,10 @@ class Inference(Parameterized):
         """
         Initialize the posterior parameterization.
         """
+        self.L = None
+        self.C = None
+        self.a = None
+        self.w = None
         self.lZ = None
         self.dlZ = None
 
