@@ -21,22 +21,18 @@ class Exact(Inference):
         self.a = None
 
     def update(self, X, Y):
-        K = la.add_diagonal(self.kern.get_kernel(X), 
-                            self.like.get_variance())
+        K = la.add_diagonal(self.kern.get_kernel(X), self.like.get_variance())
         r = Y - self.mean.get_function(X)
 
         # the posterior parameterization
         L = la.cholesky(K)
-        a = la.solve_triangular(L, r)
+        a = la.solve_cholesky(L, r)
+        Q = la.cholesky_inverse(L) - np.outer(a, a)
 
         # the log-likelihood
-        lZ = -0.5 * np.inner(a, a)
+        lZ = -0.5 * np.inner(a, r)
         lZ -= 0.5 * np.log(2 * np.pi) * len(X)
         lZ -= np.sum(np.log(L.diagonal()))
-
-        alpha = la.solve_triangular(L, a, trans=1)
-        Q = la.cholesky_inverse(L)
-        Q -= np.outer(alpha, alpha)
 
         dlZ = np.r_[
             # derivative wrt the likelihood's noise term.
@@ -46,7 +42,7 @@ class Exact(Inference):
             [-0.5*np.sum(Q*dK) for dK in self.kern.get_grad(X)],
 
             # derivative wrt the mean.
-            [np.dot(dmu, alpha) for dmu in self.mean.get_grad(X)]]
+            [np.dot(dmu, a) for dmu in self.mean.get_grad(X)]]
 
         self.L = L
         self.a = a

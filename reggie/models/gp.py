@@ -63,21 +63,22 @@ class GP(Model):
         s2 = (self._post.kern.get_kernel(X) if joint else
               self._post.kern.get_dkernel(X))
 
-        # if we have data compute the posterior.
+        # if we have data compute the posterior
         if self.ndata > 0:
             if hasattr(self._post, 'U'):
                 K = self._post.kern.get_kernel(self._post.U, X)
-                V1 = la.solve_triangular(self._post.L1, K)
-                V2 = la.solve_triangular(self._post.L2, K)
-                mu += np.dot(V2.T, self._post.a)
-                s2 += (np.dot(V2.T, V2) - np.dot(V1.T, V1)) if joint else \
-                      (np.sum(V2**2, axis=0) - np.sum(V1**2, axis=0))
-
             else:
                 K = self._post.kern.get_kernel(self._X, X)
-                V = la.solve_triangular(self._post.L, K)
-                mu += np.dot(V.T, self._post.a)
-                s2 -= np.dot(V.T, V) if joint else np.sum(V**2, axis=0)
+
+            # compute the mean and variance
+            V = la.solve_triangular(self._post.L, K)
+            mu += np.dot(K.T, self._post.a)
+            s2 -= np.dot(V.T, V) if joint else np.sum(V**2, axis=0)
+
+            # add on a correction factor if necessary
+            if hasattr(self._post, 'C'):
+                VC = la.solve_triangular(self._post.C, K)
+                s2 += np.dot(VC.T, VC) if joint else np.sum(VC**2, axis=0)
 
         if not grad:
             return mu, s2
@@ -90,29 +91,29 @@ class GP(Model):
         ds2 = np.zeros_like(X)
 
         if self.ndata > 0:
+            # get the kernel gradients
             if hasattr(self._post, 'U'):
-                m = self._post.U.shape[0]
-                dK = np.rollaxis(self._post.kern.get_gradx(X, self._post.U), 1)
-                dK = dK.reshape(m, -1)
-
-                # compute the mean
-                dV1 = la.solve_triangular(self._post.L1, dK)
-                dV2 = la.solve_triangular(self._post.L2, dK)
-                dmu += np.dot(dV2.T, self._post.a).reshape(X.shape)
-
-                # compute the variance
-                dV1 = np.rollaxis(np.reshape(dV1, (m,) + X.shape), 2)
-                dV2 = np.rollaxis(np.reshape(dV2, (m,) + X.shape), 2)
-                ds2 += 2 * np.sum(dV2 * V2, axis=1).T
-                ds2 -= 2 * np.sum(dV1 * V1, axis=1).T
-
+                dK = self._post.kern.get_gradx(X, self._post.U)
             else:
-                dK = np.rollaxis(self._post.kern.get_gradx(X, self._X), 1)
-                dK = dK.reshape(self.ndata, -1)
-                dV = la.solve_triangular(self._post.L, dK)
-                dmu += np.dot(dV.T, self._post.a).reshape(X.shape)
-                dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
-                ds2 -= 2 * np.sum(dV * V, axis=1).T
+                dK = self._post.kern.get_gradx(X, self._X)
+
+            # reshape them to make it a 2d-array
+            dK = np.rollaxis(dK, 1)
+            dK = np.reshape(dK, (dK.shape[0], -1))
+
+            # compute the mean gradients
+            dmu += np.dot(dK.T, self._post.a).reshape(X.shape)
+
+            # compute the variance gradients
+            dV = la.solve_triangular(self._post.L, dK)
+            dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
+            ds2 -= 2 * np.sum(dV * V, axis=1).T
+
+            # add in a correction factor
+            if hasattr(self._post, 'C'):
+                dVC = la.solve_triangular(self._post.C, dK)
+                dVC = np.rollaxis(np.reshape(dVC, (-1,) + X.shape), 2)
+                ds2 += 2 * np.sum(dVC * VC, axis=1).T
 
         return mu, s2, dmu, ds2
 

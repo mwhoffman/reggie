@@ -27,8 +27,8 @@ class FITC(Inference):
 
     def init(self):
         super(FITC, self).init()
-        self.L1 = None
-        self.L2 = None
+        self.L = None
+        self.C = None
         self.a = None
 
     def update(self, X, Y):
@@ -64,8 +64,7 @@ class FITC(Inference):
         v = 2 * su2 * np.sum(B**2, axis=0)
 
         # allocate space for the derivatives
-        dlZ = np.zeros(sum(_.nparams for _ in (self.like, self.kern, 
-                                               self.mean)))
+        dlZ = np.zeros(self.nparams)
 
         # derivative wrt sn2
         dlZ[0] = 0.5 * (
@@ -97,9 +96,9 @@ class FITC(Inference):
             dlZ[i] = np.dot(dmu, a)
 
         # save the posterior
-        self.L1 = Luu
-        self.L2 = np.dot(Luu, L)
-        self.a = la.solve_triangular(self.L2, np.dot(Kux, r/ell))
+        self.L = Luu
+        self.C = np.dot(Luu, L)
+        self.a = la.solve_cholesky(self.C, np.dot(Kux, r/ell))
 
         # save the log-likelihood and its gradient
         self.lZ = lZ
