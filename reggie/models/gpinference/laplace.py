@@ -30,12 +30,11 @@ class Laplace(Inference):
         def psi(a):
             # define the linesearch objective
             r = np.dot(K, a)
-            p, g, w = self.like.get_logprob(y, r+m)
-            w = np.sqrt(-w)
-            psi = 0.5 * np.inner(r, a) - np.sum(p)
-            return psi, r, p, g, w
+            lp, d1, d2, d3 = self.like.get_logprob(y, r+m)
+            psi = 0.5 * np.inner(r, a) - np.sum(lp)
+            return psi, r, d1, d2, d3
 
-        psi1, r, p, g, w = psi(a)
+        psi1, r, dy1, dy2, dy3 = psi(a)
         psi0 = np.inf
 
         for _ in xrange(MAXIT):
@@ -44,18 +43,58 @@ class Laplace(Inference):
                 break
             psi0 = psi1
 
-            # take a single step
+            # find the step direction
+            w = np.sqrt(-dy2)
             L = la.cholesky(la.add_diagonal(np.outer(w, w)*K, 1))
-            b = w**2 * r + g
-            d = b - a - w*la.solve_cholesky(L, w*np.dot(K, b))
-            s = spop.brent(lambda s: psi(a+s*d)[0], tol=1e-4, maxiter=12)
+            b = w**2 * r + dy1
+
+            # find the step size
+            delta = b - a - w*la.solve_cholesky(L, w*np.dot(K, b))
+            s = spop.brent(lambda s: psi(a+s*delta)[0], tol=1e-4, maxiter=12)
 
             # update the parameters
-            a += s*d
-            psi1, r, p, g, w = psi(a)
+            a += s*delta
+            psi1, r, dy1, dy2, dy3 = psi(a)
 
+        # update the posterior parameters
+        w = np.sqrt(-dy2)
+        L = la.cholesky(la.add_diagonal(np.outer(w, w)*K, 1))
+
+        # compute the marginal log-likelihood
         lZ = -psi1 - np.sum(np.log(np.diag(L)))
+
+        # compute parameters needed for the hyperparameter gradients
+        R = w * la.solve_cholesky(L, np.diag(w))
+        C = la.solve_triangular(L, w*K)
+        g = 0.5 * (np.diag(K) - np.sum(C**2, axis=0))
+        f = r+m
+        df = g * dy3
+
+        # define the implicit part of the gradients
+        implicit = lambda b: np.dot(df, b - np.dot(K, np.dot(R, b)))
+
+        # allocate space for the gradients
+        dlZ = np.zeros(self.nparams)
+
+        # the likelihood derivatives
+        i = 0
+        for i, (dl0, dl1, dl2) in enumerate(self.like.get_grad(y, f), i):
+            dlZ[i] = np.dot(g, dl2) + np.sum(dl0)
+            dlZ[i] += implicit(np.dot(K, dl1))
+
+        # covariance derivatives
+        i += 1
+        for i, dK in enumerate(self.kern.get_grad(X), i):
+            dlZ[i] = 0.5 * (np.dot(a, np.dot(dK, a)) - np.sum(R*dK))
+            dlZ[i] += implicit(np.dot(dK, dy1))
+
+        # mean derivatives
+        i += 1
+        for i, dm in enumerate(self.mean.get_grad(X), i):
+            dlZ[i] = np.dot(dm, a) + implicit(dm)
 
         self.L = L
         self.a = a
         self.w = w
+        self.lZ = lZ
+        self.dlZ = dlZ

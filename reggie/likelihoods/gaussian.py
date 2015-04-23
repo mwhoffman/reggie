@@ -40,8 +40,17 @@ class Gaussian(Likelihood):
         return float(self._sn2)
 
     def get_logprob(self, y, f):
-        yhat = y - f
-        lp = -0.5 * (yhat**2 / self._sn2 + np.log(2 * np.pi * self._sn2))
-        dlp = yhat / self._sn2
-        d2lp = np.full_like(yhat, -1/self._sn2)
-        return lp, dlp, d2lp
+        r = y-f
+        lp = -0.5 * (r**2 / self._sn2 + np.log(2 * np.pi * self._sn2))
+        d1lp = r / self._sn2
+        d2lp = np.full_like(r, -1/self._sn2)
+        d3lp = np.zeros_like(r)
+        return lp, d1lp, d2lp, d3lp
+
+    def get_grad(self, y, f):
+        r = y-f
+        s = self._sn2**2
+        d0 = 0.5 * (r**2/s - 1/self._sn2)
+        d1 = -r/s
+        d2 = np.full_like(r, 1/s)
+        yield d0, d1, d2
