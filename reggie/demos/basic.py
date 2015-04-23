@@ -13,7 +13,7 @@ if __name__ == '__main__':
     Y = data['y']
 
     # create the GP and optimize the model
-    gp = rg.make_gp(0.1, 1.0, 0.1)
+    gp = rg.make_gp(0.1, 1.0, 0.1).switch_inference('laplace')
     gp.add_data(X, Y)
     gp.optimize()
 

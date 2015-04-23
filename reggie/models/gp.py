@@ -106,7 +106,7 @@ class GP(Model):
             dmu += np.dot(dK.T, self._post.a).reshape(X.shape)
 
             # compute the variance gradients
-            dV = la.solve_triangular(self._post.L, dK)
+            dV = la.solve_triangular(self._post.L, w*dK)
             dV = np.rollaxis(np.reshape(dV, (-1,) + X.shape), 2)
             ds2 -= 2 * np.sum(dV * V, axis=1).T
 
