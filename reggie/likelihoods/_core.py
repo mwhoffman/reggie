@@ -22,3 +22,9 @@ class Likelihood(Parameterized):
         Sample observations y given evaluations of the latent function f.
         """
         raise NotImplementedError
+
+    def get_logprob(self, y, f):
+        raise NotImplementedError
+
+    def get_grad(self, y, f):
+        raise NotImplementedError

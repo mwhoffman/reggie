@@ -28,16 +28,16 @@ class Gaussian(Likelihood):
         # register our parameters
         self._sn2 = self._register('sn2', sn2, domain=POSITIVE)
 
-    def sample(self, f, rng=None):
-        rng = random.rstate(rng)
-        return f + rng.normal(size=len(f), scale=np.sqrt(self._sn2))
-
     def get_variance(self):
         """
         Return the variance of the observation model; this is used for
         performing exact inference.
         """
         return float(self._sn2)
+
+    def sample(self, f, rng=None):
+        rng = random.rstate(rng)
+        return f + rng.normal(size=len(f), scale=np.sqrt(self._sn2))
 
     def get_logprob(self, y, f):
         r = y-f

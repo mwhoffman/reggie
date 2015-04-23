@@ -78,20 +78,21 @@ class Laplace(Inference):
 
         # the likelihood derivatives
         i = 0
-        for i, (dl0, dl1, dl2) in enumerate(self.like.get_grad(y, f), i):
+        for dl0, dl1, dl2 in self.like.get_grad(y, f):
             dlZ[i] = np.dot(g, dl2) + np.sum(dl0)
             dlZ[i] += implicit(np.dot(K, dl1))
+            i += 1
 
         # covariance derivatives
-        i += 1
-        for i, dK in enumerate(self.kern.get_grad(X), i):
+        for dK in self.kern.get_grad(X):
             dlZ[i] = 0.5 * (np.dot(a, np.dot(dK, a)) - np.sum(R*dK))
             dlZ[i] += implicit(np.dot(dK, dy1))
+            i += 1
 
         # mean derivatives
-        i += 1
-        for i, dm in enumerate(self.mean.get_grad(X), i):
+        for dm in self.mean.get_grad(X):
             dlZ[i] = np.dot(dm, a) + implicit(dm)
+            i += 1
 
         self.L = L
         self.a = a
