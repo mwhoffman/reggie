@@ -30,39 +30,35 @@ def optimize(model, raw=False):
             Return the negative log marginal likelihood of the model and the
             gradient of this quantity wrt the parameters.
             """
-            # update the temporary model using parameters in the transformed
-            # space
-            model.set_params(theta, True)
+            # update the model using parameters in the transformed space
+            model.params.set_value(theta, transform=True)
 
-            # get the log-probability and its gradient in the untransformed
-            # space
-            logp0, dlogp0 = model.get_logprior(True)
-            logp1, dlogp1 = model.get_loglike(True)
+            # get prior and likelihood as well as their gradients in the
+            # un-transformed space
+            logp0, dlogp0 = model.params.get_logprior(grad=True)
+            logp1, dlogp1 = model.get_loglike(grad=True)
 
-            # form the posterior probability and multiply by the grad factor
-            # which gives us the gradient in the transformed space (via the
-            # chain rule)
+            # form the posterior and transform the gradients
             logp = -(logp0 + logp1)
-            dlogp = -(dlogp0 + dlogp1) * model.gradfactor
+            dlogp = -(dlogp0 + dlogp1) * model.params.gradfactor
 
             return logp, dlogp
 
         # get rid of any infinite bounds.
-        bounds = model.get_bounds(True)
+        bounds = model.params.get_bounds(transform=True)
         isinf = np.isinf(bounds)
         bounds = np.array(bounds, dtype=object)
         bounds[isinf] = None
         bounds = map(tuple, bounds)
 
         # optimize the model
-        theta, _, _ = so.fmin_l_bfgs_b(func=objective,
-                                       x0=model.get_params(True),
-                                       bounds=bounds)
+        theta = model.params.get_value(transform=True)
+        theta, _, _ = so.fmin_l_bfgs_b(objective, theta, bounds=bounds)
 
     if raw:
         # return the parameters in the transformed space
         model = theta
     else:
-        model.set_params(theta, True)
+        model.params.set_value(theta, transform=True)
 
     return model

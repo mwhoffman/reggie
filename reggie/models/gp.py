@@ -44,12 +44,6 @@ class GP(Model):
         else:
             self._post.update(self._X, self._Y)
 
-    def get_loglike(self, grad=False):
-        if self.ndata == 0:
-            return (0.0, np.zeros(self.nparams)) if grad else 0.0
-        else:
-            return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
-
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
         mu = self._post.mean.get_function(X)
@@ -110,6 +104,12 @@ class GP(Model):
                 ds2 += 2 * np.sum(dVC * VC, axis=1).T
 
         return mu, s2, dmu, ds2
+
+    def get_loglike(self, grad=False):
+        if self.ndata == 0:
+            return (0.0, np.zeros(self.nparams)) if grad else 0.0
+        else:
+            return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
     def sample(self, X, size=None, latent=True, rng=None):
         mu, Sigma = self._predict(X, joint=True)
