@@ -78,14 +78,14 @@ class TestGP(ModelTest):
 
 class TestGP_FITC(ModelTest):
     def __init__(self):
-        gp = models.make_gp(0.7, 1, [1., 1.])
-        gp = gp.switch_inference('fitc', np.random.rand(50, 2))
+        U = np.random.rand(50, 2)
+        gp = models.make_gp(0.7, 1, [1., 1.], inference='fitc', U=U)
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)
 
 
 class TestGP_Laplace(ModelTest):
     def __init__(self):
-        gp = models.make_gp(0.7, 1, [1., 1.]).switch_inference('laplace')
+        gp = models.make_gp(0.7, 1, [1., 1.], inference='laplace')
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)

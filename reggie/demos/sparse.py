@@ -14,8 +14,7 @@ if __name__ == '__main__':
     U = np.linspace(X.min(), X.max(), 10)[:, None]
 
     # create a basic GP and switch to sparse inference
-    gp = rg.make_gp(0.1, 1.0, 0.1)
-    gp = gp.switch_inference('fitc', U)
+    gp = rg.make_gp(0.1, 1.0, 0.1, inference='fitc', U=U)
     gp.add_data(X, Y)
     gp.optimize()
 

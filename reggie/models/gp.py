@@ -44,13 +44,6 @@ class GP(Model):
         else:
             self._post.update(self._X, self._Y)
 
-    def switch_inference(self, inference, *args, **kwargs):
-        gp = GP(self._post.like, self._post.kern, self._post.mean,
-                inference, *args, **kwargs)
-        if self.ndata > 0:
-            gp.add_data(self._X, self._Y)
-        return gp
-
     def get_loglike(self, grad=False):
         if self.ndata == 0:
             return (0.0, np.zeros(self.nparams)) if grad else 0.0
@@ -140,7 +133,8 @@ class GP(Model):
             return self._predict(X)
 
 
-def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
+def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
+            inference='exact', **kwargs):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
     mean = functions.Constant(mean)
@@ -156,4 +150,4 @@ def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se'):
     if kernel is None:
         raise ValueError('Unknown kernel type')
 
-    return GP(like, kern, mean, 'exact')
+    return GP(like, kern, mean, inference, **kwargs)
