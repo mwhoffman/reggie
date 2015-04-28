@@ -15,6 +15,14 @@ __all__ = ['Exact']
 
 
 class Exact(Inference):
+    def __init__(self, like, kern, mean):
+        super(Exact, self).__init__(like, kern, mean)
+        try:
+            self.like.get_variance()
+        except NotImplementedError:
+            raise ValueError('Exact inference a likelihood which implements '
+                             '`get_variance` (e.g. Gaussian)')
+
     def update(self, X, Y):
         K = la.add_diagonal(self.kern.get_kernel(X), self.like.get_variance())
         r = Y - self.mean.get_function(X)

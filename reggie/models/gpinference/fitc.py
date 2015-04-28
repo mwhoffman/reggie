@@ -19,6 +19,11 @@ class FITC(Inference):
     def __init__(self, like, kern, mean, U):
         super(FITC, self).__init__(like, kern, mean)
         self.U = np.array(U, ndmin=2, dtype=float, copy=True)
+        try:
+            self.like.get_variance()
+        except NotImplementedError:
+            raise ValueError('FITC inference a likelihood which implements '
+                             '`get_variance` (e.g. Gaussian)')
 
     def __info__(self):
         info = super(FITC, self).__info__()

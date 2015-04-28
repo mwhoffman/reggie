@@ -34,10 +34,6 @@ class Gaussian(Likelihood):
         return info
 
     def get_variance(self):
-        """
-        Return the variance of the observation model; this is used for
-        performing exact inference.
-        """
         return float(self._sn2)
 
     def sample(self, f, rng=None):
@@ -52,7 +48,7 @@ class Gaussian(Likelihood):
         d3lp = np.zeros_like(r)
         return lp, d1lp, d2lp, d3lp
 
-    def get_grad(self, y, f):
+    def get_laplace_grad(self, y, f):
         r = y-f
         s = self._sn2**2
         d0 = 0.5 * (r**2/s - 1/self._sn2)

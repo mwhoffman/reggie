@@ -78,7 +78,7 @@ class Laplace(Inference):
 
         # the likelihood derivatives
         i = 0
-        for dl0, dl1, dl2 in self.like.get_grad(y, f):
+        for dl0, dl1, dl2 in self.like.get_laplace_grad(y, f):
             dlZ[i] = np.dot(g, dl2) + np.sum(dl0)
             dlZ[i] += implicit(np.dot(K, dl1))
             i += 1
