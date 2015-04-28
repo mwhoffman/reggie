@@ -19,15 +19,15 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
     instance and returns a new model instance.
     """
     rng = rstate(rng)
-    theta0 = model.get_params()
-    logp0 = model.get_logprior() + model.get_loglike()
+    theta0 = model.params.get_value()
+    logp0 = model.params.get_logprior() + model.get_loglike()
 
     def get_logp(theta):
         try:
             # update the new model (ie computing its sufficient statistics) and
             # compute the posterior probability and the model itself.
             model_ = model.copy(theta)
-            logp = model_.get_logprior() + model_.get_loglike()
+            logp = model_.params.get_logprior() + model_.get_loglike()
 
         except ValueError:
             # we tried to set parameters that don't lie in the support of
@@ -37,7 +37,7 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
 
         return model_, logp
 
-    for block in model.blocks:
+    for block in model.params.blocks:
         # sample a random direction
         direction = np.zeros_like(theta0)
         direction[block] = rng.randn(len(block))
@@ -84,5 +84,5 @@ def sample(model, n, raw=False, rng=None):
         model = slice_sample(model, rng=rng)
         models.append(model)
     if raw:
-        models = np.array([_.get_params() for _ in models])
+        models = np.array([m.params.get_value() for m in models])
     return models

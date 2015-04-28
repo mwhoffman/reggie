@@ -26,8 +26,8 @@ if __name__ == '__main__':
     fig = mp.figure(1)
     fig.hold()
     fig.plot_banded(x, mu, 2*np.sqrt(s2))
-    fig.scatter(X.ravel(), Y)
-    fig.scatter(U.ravel(), np.full_like(U, -1), 'x')
+    fig.scatter(X, Y)
+    fig.scatter(U, np.full_like(U, -1), 'x')
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
     fig.title = 'Sparse GP (FITC)'

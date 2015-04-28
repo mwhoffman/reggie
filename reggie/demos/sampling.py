@@ -16,14 +16,13 @@ if __name__ == '__main__':
     gp = rg.make_gp(0.1, 1.0, 0.1)
 
     # set the hyperpriors
-    gp.set_prior('like.sn2', 'lognormal', 0, 10)
-    gp.set_prior('kern.rho', 'lognormal', 0, 100)
-    gp.set_prior('kern.ell', 'lognormal', 0, 10)
-    gp.set_prior('mean.bias', 'normal', 0, 20)
+    gp.params['like.sn2'].set_prior('lognormal', 0, 10)
+    gp.params['kern.rho'].set_prior('lognormal', 0, 100)
+    gp.params['kern.ell'].set_prior('lognormal', 0, 10)
+    gp.params['mean.bias'].set_prior('normal', 0, 20)
 
-    gp.set_block('kern.rho', 1)
-    gp.set_block('kern.ell', 2)
-    gp.set_block('mean.bias', 3)
+    # put each hyperparameter into a separate block
+    gp.params.block = range(gp.params.size)
 
     # add data and optimize
     gp.add_data(data['X'], data['y'])
@@ -47,7 +46,7 @@ if __name__ == '__main__':
     fig.draw()
 
     # plot the samples
-    mp.plot_pairs(mcmc.get_samples(), mcmc.names, fig=2)
+    mp.plot_pairs(mcmc.get_samples(), fig=2)
 
     # block if we're in non-interactive mode
     mp.show()
