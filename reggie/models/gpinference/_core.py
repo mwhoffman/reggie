@@ -27,6 +27,13 @@ class Inference(Parameterized):
         self.mean = self._register('mean', mean, Function)
         self.init()
 
+    def __info__(self):
+        info = []
+        info.append(('like', self.like))
+        info.append(('kern', self.kern))
+        info.append(('mean', self.mean))
+        return info
+
     def init(self):
         """
         Initialize the posterior parameterization.

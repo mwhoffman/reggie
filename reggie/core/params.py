@@ -83,12 +83,18 @@ class Parameter(object):
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
 
-    def __repr__(self):
-        return _ndprint(self.value)
-
     @property
     def nparams(self):
         return self.value.size
+
+    @property
+    def gradfactor(self):
+        """
+        Return a gradient factor which can be used to transform a gradient in
+        the original space into a gradient in the transformed space, via the
+        chain rule.
+        """
+        return self.transform.get_gradfactor(self.value).ravel()
 
     def get_value(self, transform=False):
         """
@@ -152,14 +158,6 @@ class Parameter(object):
             self.bounds = bounds.squeeze()
             self.value.flat[:] = value
 
-    def get_gradfactor(self):
-        """
-        Return a gradient factor which can be used to transform a gradient in
-        the original space into a gradient in the transformed space, via the
-        chain rule.
-        """
-        return self.transform.get_gradfactor(self.value).ravel()
-
     def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments for this parameter
@@ -218,7 +216,7 @@ class Parameters(object):
         if self.nparams == 0:
             return np.array([])
         else:
-            return np.hstack(param.get_gradfactor()
+            return np.hstack(param.gradfactor
                              for param in self.__params.values())
 
     @property
@@ -268,12 +266,13 @@ class Parameters(object):
         """
         Describe the structure of the object in terms of its hyperparameters.
         """
-        headers = ['name', 'value', 'domain', 'prior', 'block']
+        headers = ['name', 'domain', 'prior', 'size', 'block']
         table = []
         for name, param in self.__params.items():
             prior = '-' if param.prior is None else str(param.prior)
-            table.append([name, str(param), param.domain, prior, param.block])
-        print(tabulate.tabulate(table, headers, numalign=None))
+            table.append([name, param.domain, prior, param.nparams,
+                          param.block])
+        print(tabulate.tabulate(table, headers))
 
     def get_value(self, transform=False):
         """Get the value of the parameters."""
@@ -345,26 +344,35 @@ class Parameterized(object):
     def __info__(self):
         return []
 
-    # def __repr__(self):
-    #     typename = self.__class__.__name__
-    #     items = self.__params.items() + self.__info__()
-    #     parts = []
-    #     for name, param in items:
-    #         if isinstance(param, np.ndarray):
-    #             value = _ndprint(param)
-    #         else:
-    #             value = repr(param)
-    #         parts.append('{:s}={:s}'.format(name, value))
-    #     nintro = len(typename) + 1
-    #     nchars = nintro + 1 + sum(len(_)+2 for _ in parts)
-    #     split = any('\n' in _ for _ in parts)
-    #     if nchars > 80 or split:
-    #         sep = '\n' + ' ' * nintro
-    #         parts = [sep.join(_.split('\n')) for _ in parts]
-    #         sep = ',' + sep
-    #     else:
-    #         sep = ', '
-    #     return typename + '(' + sep.join(parts) + ')'
+    def __repr__(self):
+        typename = self.__class__.__name__
+        parts = []
+        for name, param in self.__info__():
+            if isinstance(param, np.ndarray):
+                if param.shape == ():
+                    value = '{:.2f}'.format(param.flat[0])
+                else:
+                    value = '[' * param.ndim
+                    value += ', '.join('{:.2f}'.format(_)
+                                       for _ in param.flat[:2])
+                    if param.size > 3:
+                        value += ', ..., '
+                    if param.size > 2:
+                        value += '{:.2f}'.format(param.flat[-1])
+                    value += ']' * param.ndim
+            else:
+                value = repr(param)
+            parts.append('{:s}={:s}'.format(name, value))
+        nintro = len(typename) + 1
+        nchars = nintro + 1 + sum(len(_)+2 for _ in parts)
+        split = any('\n' in _ for _ in parts)
+        if nchars > 80 or split:
+            sep = '\n' + ' ' * nintro
+            parts = [sep.join(_.split('\n')) for _ in parts]
+            sep = ',' + sep
+        else:
+            sep = ', '
+        return typename + '(' + sep.join(parts) + ')'
 
     def __deepcopy__(self, memo):
         # populate the memo with our param values so that these get copied

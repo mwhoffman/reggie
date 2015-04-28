@@ -35,6 +35,11 @@ class Constant(Function):
         super(Constant, self).__init__()
         self._bias = self._register('bias', bias)
 
+    def __info__(self):
+        info = []
+        info.append(('bias', self._bias))
+        return info
+
     def get_function(self, X):
         return np.full(len(X), self._bias)
 

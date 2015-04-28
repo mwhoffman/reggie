@@ -28,6 +28,11 @@ class Gaussian(Likelihood):
         super(Gaussian, self).__init__()
         self._sn2 = self._register('sn2', sn2, POSITIVE)
 
+    def __info__(self):
+        info = []
+        info.append(('sn2', self._sn2))
+        return info
+
     def get_variance(self):
         """
         Return the variance of the observation model; this is used for

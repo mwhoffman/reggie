@@ -38,9 +38,11 @@ class SE(RealKernel):
         self.ndim = ndim if self._iso else self._ell.size
 
     def __info__(self):
-        info = super(SE, self).__info__()
+        info = []
+        info.append(('rho', self._rho))
+        info.append(('ell', self._ell))
         if self._iso:
-            info.append(('ndim', self.ndim))
+            info.append(('ndim', self._ndim))
         return info
 
     def get_kernel(self, X1, X2=None):

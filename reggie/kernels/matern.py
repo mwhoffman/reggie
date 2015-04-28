@@ -36,9 +36,11 @@ class Matern(RealKernel):
         self.ndim = ndim if self._iso else self._ell.size
 
     def __info__(self):
-        info = super(Matern, self).__info__()
+        info = []
+        info.append(('rho', self._rho))
+        info.append(('ell', self._ell))
         if self._iso:
-            info.append(('ndim', self.ndim))
+            info.append(('ndim', self._ndim))
         if self._d != 3:
             info.append(('d', self._d))
         return info

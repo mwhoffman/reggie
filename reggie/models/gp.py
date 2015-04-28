@@ -34,9 +34,8 @@ class GP(Model):
         self._post = self._register(None, post)
 
     def __info__(self):
-        info = super(GP, self).__info__()
-        info.append(('inference', type(self._post).__name__.lower()))
-        info.extend(self._post.__info__())
+        info = self._post.__info__()
+        info.insert(3, ('inference', type(self._post).__name__.lower()))
         return info
 
     def _update(self):
