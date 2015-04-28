@@ -18,6 +18,8 @@ __all__ = ['Matern']
 
 class Matern(RealKernel):
     def __init__(self, rho, ell, d=3, ndim=None):
+        super(Matern, self).__init__()
+
         if d not in {1, 3, 5}:
             raise ValueError('d must be one of 1, 3, or 5')
 
@@ -25,8 +27,8 @@ class Matern(RealKernel):
         shape = ('d',) if (ndim is None) else ()
 
         # register our parameters
-        self._rho = self._register('rho', rho, domain=POSITIVE)
-        self._ell = self._register('ell', ell, domain=POSITIVE, shape=shape)
+        self._rho = self._register('rho', rho, POSITIVE)
+        self._ell = self._register('ell', ell, POSITIVE, shape)
 
         # save flags for iso/ndim
         self._d = d

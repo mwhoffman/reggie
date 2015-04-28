@@ -24,12 +24,14 @@ class SE(RealKernel):
     isotropic and ell must be a scalar.
     """
     def __init__(self, rho, ell, ndim=None):
+        super(SE, self).__init__()
+
         # get the shape that ell should be
         shape = ('d',) if (ndim is None) else ()
 
         # register our parameters
-        self._rho = self._register('rho', rho, domain=POSITIVE)
-        self._ell = self._register('ell', ell, domain=POSITIVE, shape=shape)
+        self._rho = self._register('rho', rho, POSITIVE)
+        self._ell = self._register('ell', ell, POSITIVE, shape)
 
         # save flags for iso/ndim
         self._iso = ndim is not None

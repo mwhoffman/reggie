@@ -30,6 +30,7 @@ class GP(Model):
         post = inference(like, kern, mean, *args, **kwargs)
 
         # register hyperparameters
+        super(GP, self).__init__()
         self._post = self._register(None, post)
 
     def __info__(self):

@@ -64,7 +64,7 @@ def _ndprint(arr):
 
 class Parameter(object):
     """
-    Representation of a parameter vector.
+    Representation of a single parameter array.
     """
     def __init__(self, value, domain, prior=None, block=0):
         self.value = value
@@ -172,13 +172,35 @@ class Parameter(object):
             return self.prior.get_logprior(self.value.ravel(), grad)
 
 
-class ParameterInfo(object):
+class Parameters(object):
     """
-    More detailed access to the parameter information.
+    Representation of a set of parameters bound to a Parameterized object.
     """
-    def __init__(self, obj, params):
+    def __init__(self, obj):
         self.__obj = obj
-        self.__params = params
+        self.__params = collections.OrderedDict()
+
+    def _register(self, name, param):
+        if isinstance(param, Parameter):
+            if name in self.__params:
+                raise ValueError("parameter '{:s}' has already been registered"
+                                 .format(name))
+            self.__params[name] = param
+        elif isinstance(param, Parameters):
+            for n, p in param.__params.items():
+                if name is not None:
+                    n = name + '.' + n
+                self._register(n, p)
+        else:
+            raise ValueError('unknown type passed to _register')
+
+    def __deepcopy__(self, memo):
+        # populate the memo with our param values so that these get copied
+        # first. this is in order to work around the 0-dimensional array bug
+        # noted in Parameter.
+        for param in self.__params.values():
+            copy.deepcopy(param, memo)
+        return _deepcopy(self, memo)
 
     @property
     def nparams(self):
@@ -317,11 +339,8 @@ class Parameterized(object):
     """
     Representation of a parameterized object.
     """
-    def __new__(cls, *args, **kwargs):
-        self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
-        # pylint: disable=W0212
-        self.__params = collections.OrderedDict()
-        return self
+    def __init__(self):
+        self.params = Parameters(self)
 
     def __info__(self):
         return []
@@ -351,14 +370,8 @@ class Parameterized(object):
         # populate the memo with our param values so that these get copied
         # first. this is in order to work around the 0-dimensional array bug
         # noted in Parameter.
-        for param in self.__params.values():
-            copy.deepcopy(param, memo)
+        copy.deepcopy(self.params, memo)
         return _deepcopy(self, memo)
-
-    @property
-    def params(self):
-        """Parameter information."""
-        return ParameterInfo(self, self.__params)
 
     @property
     def nparams(self):
@@ -381,32 +394,29 @@ class Parameterized(object):
         """
         pass
 
-    def _register(self, name, param, klass=None, domain=REAL, shape=()):
+    def _register(self, name, param, *args):
         """
-        Register a parameter given a `(name, param)` pair. If `klass` is given
-        then this should be a Parameterized object of the given class.
-        Otherwise `domain` and `shape` can be used to specify the domain and
-        shape of a Parameter object.
+        Register a parameter given a `(name, param)` pair. Here `param` should
+        be either a Parameterized or an array-like object. If `param` is of
+        class Parameterized then name can be None in order to hide the
+        hierarchy; otherwise it should be a string identifier.
         """
-        if name in self.__params:
-            raise ValueError("parameter '{:s}' has already been registered"
-                             .format(name))
-
-        if klass is not None and not isinstance(param, klass):
-            raise ValueError("parameter '{:s}' must be of type {:s}"
-                             .format(name, klass.__name__))
-
         if isinstance(param, Parameterized):
+            if len(args) > 0 and not isinstance(param, args[0]):
+                raise ValueError("parameter '{:s}' must be of type {:s}"
+                                 .format(name, args[0].__name__))
+
+            if len(args) > 1:
+                raise ValueError('unknown constraints passed to _register')
+
             # copy the parameterized object
             param = param.copy()
-
-            # pylint: disable=W0212
-            for n, p in param.__params.items():
-                if name is not None:
-                    n = name + '.' + n
-                self.__params[n] = p
+            self.params._register(name, param.params)
 
         else:
+            domain = args[0] if len(args) > 0 else REAL
+            shape = args[1] if len(args) > 1 else ()
+
             try:
                 # create the parameter vector
                 ndmin = len(shape)
@@ -428,7 +438,7 @@ class Parameterized(object):
                                  .format(name, ', '.join(map(str, shape))))
 
             # save the parameter
-            self.__params[name] = Parameter(param, domain)
+            self.params._register(name, Parameter(param, domain))
 
         # return either the value of a Parameter instance or the Parameterized
         # object so that it can be used by the actual model

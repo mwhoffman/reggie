@@ -21,6 +21,7 @@ class Inference(Parameterized):
     Base interface for inference methods.
     """
     def __init__(self, like, kern, mean):
+        super(Inference, self).__init__()
         self.like = self._register('like', like, Likelihood)
         self.kern = self._register('kern', kern, Kernel)
         self.mean = self._register('mean', mean, Function)

@@ -32,6 +32,7 @@ class Constant(Function):
     Function which returns a constant value on any input.
     """
     def __init__(self, bias=0):
+        super(Constant, self).__init__()
         self._bias = self._register('bias', bias)
 
     def get_function(self, X):
