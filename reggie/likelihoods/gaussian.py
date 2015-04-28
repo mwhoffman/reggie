@@ -25,8 +25,13 @@ class Gaussian(Likelihood):
     where `sn2` is the noise variance.
     """
     def __init__(self, sn2):
-        # register our parameters
-        self._sn2 = self._register('sn2', sn2, domain=POSITIVE)
+        super(Gaussian, self).__init__()
+        self._sn2 = self._register('sn2', sn2, POSITIVE)
+
+    def __info__(self):
+        info = []
+        info.append(('sn2', self._sn2))
+        return info
 
     def get_variance(self):
         """

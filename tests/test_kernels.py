@@ -48,7 +48,7 @@ class KernelTest(object):
         nt.assert_allclose(g, G)
 
     def test_get_grad(self):
-        x = self.kernel.get_params()
+        x = self.kernel.params.get_value()
         k = lambda x, x1, x2: self.kernel.copy(x)(x1, x2)
 
         G = np.array(list(self.kernel.get_grad(self.X1, self.X2)))

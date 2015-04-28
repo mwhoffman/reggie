@@ -65,7 +65,7 @@ class MetaMCMC(object):
         return mu, s2, dmu, ds2
 
     def get_samples(self):
-        return np.array([m.get_params() for m in self._models])
+        return np.array([m.params.get_value() for m in self._models])
 
     @property
     def names(self):

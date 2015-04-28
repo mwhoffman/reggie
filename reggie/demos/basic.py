@@ -13,7 +13,7 @@ if __name__ == '__main__':
     Y = data['y']
 
     # create the GP and optimize the model
-    gp = rg.make_gp(0.1, 1.0, 0.1, inference='laplace')
+    gp = rg.make_gp(0.1, 1.0, 0.1)
     gp.add_data(X, Y)
     gp.optimize()
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     fig = mp.figure(1)
     fig.hold()
     fig.plot_banded(x, mu, 2*np.sqrt(s2))
-    fig.scatter(X.ravel(), Y)
+    fig.scatter(X, Y)
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
     fig.title = 'Basic GP'

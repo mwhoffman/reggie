@@ -32,7 +32,13 @@ class Constant(Function):
     Function which returns a constant value on any input.
     """
     def __init__(self, bias=0):
+        super(Constant, self).__init__()
         self._bias = self._register('bias', bias)
+
+    def __info__(self):
+        info = []
+        info.append(('bias', self._bias))
+        return info
 
     def get_function(self, X):
         return np.full(len(X), self._bias)

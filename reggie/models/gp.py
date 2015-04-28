@@ -30,12 +30,12 @@ class GP(Model):
         post = inference(like, kern, mean, *args, **kwargs)
 
         # register hyperparameters
-        self._post = self._register(None, post)
+        super(GP, self).__init__()
+        self._post = self._pregister(None, post)
 
     def __info__(self):
-        info = super(GP, self).__info__()
-        info.append(('inference', type(self._post).__name__.lower()))
-        info.extend(self._post.__info__())
+        info = self._post.__info__()
+        info.insert(3, ('inference', type(self._post).__name__.lower()))
         return info
 
     def _update(self):
@@ -43,12 +43,6 @@ class GP(Model):
             self._post.init()
         else:
             self._post.update(self._X, self._Y)
-
-    def get_loglike(self, grad=False):
-        if self.ndata == 0:
-            return (0.0, np.zeros(self.nparams)) if grad else 0.0
-        else:
-            return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
@@ -110,6 +104,12 @@ class GP(Model):
                 ds2 += 2 * np.sum(dVC * VC, axis=1).T
 
         return mu, s2, dmu, ds2
+
+    def get_loglike(self, grad=False):
+        if self.ndata == 0:
+            return (0.0, np.zeros(self.params.size)) if grad else 0.0
+        else:
+            return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
     def sample(self, X, size=None, latent=True, rng=None):
         mu, Sigma = self._predict(X, joint=True)

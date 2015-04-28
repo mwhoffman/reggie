@@ -22,10 +22,6 @@ from .domains import BOUNDS, TRANSFORMS
 __all__ = ['Parameterized']
 
 
-# CONSTANTS FOR ADJUSTING PARAMETER FORMATTING
-PRECISION = 2
-
-
 def _outbounds(bounds, theta):
     """
     Check whether a vector is inside the given bounds.
@@ -48,23 +44,9 @@ def _deepcopy(obj, memo):
     return ret
 
 
-def _ndprint(arr):
-    if arr.shape == ():
-        value = '{:.2f}'.format(arr.flat[0])
-    else:
-        value = '[' * arr.ndim
-        value += ', '.join('{:.2f}'.format(_) for _ in arr.flat[:2])
-        if arr.size > 3:
-            value += ', ..., '
-        if arr.size > 2:
-            value += '{:.2f}'.format(arr.flat[-1])
-        value += ']' * arr.ndim
-    return value
-
-
 class Parameter(object):
     """
-    Representation of a parameter vector.
+    Representation of a single parameter array.
     """
     def __init__(self, value, domain, prior=None, block=0):
         self.value = value
@@ -75,7 +57,7 @@ class Parameter(object):
         self.bounds = BOUNDS[domain]
 
         # note this will raise an error if we're out of bounds.
-        self.set_params(self.value.ravel())
+        self.set_value(self.value.ravel())
 
     def __deepcopy__(self, memo):
         # this gets around a bug where copy.deepcopy(array) does not return an
@@ -83,14 +65,16 @@ class Parameter(object):
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
 
-    def __repr__(self):
-        return _ndprint(self.value)
-
     @property
-    def nparams(self):
-        return self.value.size
+    def gradfactor(self):
+        """
+        Return a gradient factor which can be used to transform a gradient in
+        the original space into a gradient in the transformed space, via the
+        chain rule.
+        """
+        return self.transform.get_gradfactor(self.value).ravel()
 
-    def get_params(self, transform=False):
+    def get_value(self, transform=False):
         """
         Return the parameters. If `transform` is True return values in the
         transformed space.
@@ -100,7 +84,7 @@ class Parameter(object):
         else:
             return self.value.copy().ravel()
 
-    def set_params(self, theta, transform=False):
+    def set_value(self, theta, transform=False):
         """
         Set the parameters to values given by `theta`. If `transform` is true
         then theta lies in the transformed space.
@@ -152,14 +136,6 @@ class Parameter(object):
             self.bounds = bounds.squeeze()
             self.value.flat[:] = value
 
-    def get_gradfactor(self):
-        """
-        Return a gradient factor which can be used to transform a gradient in
-        the original space into a gradient in the transformed space, via the
-        chain rule.
-        """
-        return self.transform.get_gradfactor(self.value).ravel()
-
     def get_logprior(self, grad=False):
         """
         Return the log probability of parameter assignments for this parameter
@@ -172,26 +148,215 @@ class Parameter(object):
             return self.prior.get_logprior(self.value.ravel(), grad)
 
 
+class Parameters(object):
+    """
+    Representation of a set of parameters bound to a Parameterized object.
+    """
+    def __init__(self, obj, params=None):
+        params = [] if (params is None) else params
+        self.__obj = obj
+        self.__params = collections.OrderedDict(params)
+
+    def _register(self, name, param):
+        if isinstance(param, Parameter):
+            if name in self.__params:
+                raise ValueError("parameter '{:s}' has already been registered"
+                                 .format(name))
+            self.__params[name] = param
+        elif isinstance(param, Parameters):
+            for n, p in param.__params.items():
+                if name is not None:
+                    n = name + '.' + n
+                self._register(n, p)
+        else:
+            raise ValueError('unknown type passed to _register')
+
+    def __getitem__(self, keys):
+        params = collections.OrderedDict()
+        keys = keys if isinstance(keys, tuple) else (keys,)
+        for key in keys:
+            if key in params:
+                raise ValueError('duplicate key: {:s}'.format(key))
+            if key not in self.__params:
+                raise ValueError('unknown key: {:s}'.format(key))
+            params[key] = self.__params[key]
+        return Parameters(self.__obj, params)
+
+    def __deepcopy__(self, memo):
+        # populate the memo with our param values so that these get copied
+        # first. this is in order to work around the 0-dimensional array bug
+        # noted in Parameter.
+        for param in self.__params.values():
+            copy.deepcopy(param, memo)
+        return _deepcopy(self, memo)
+
+    @property
+    def size(self):
+        """
+        Return the number of parameters for this object.
+        """
+        return sum(param.value.size for param in self.__params.values())
+
+    @property
+    def gradfactor(self):
+        """
+        Return the gradient factor which should be multipled by any gradient in
+        order to define a gradient in the transformed space.
+        """
+        if self.size == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.gradfactor
+                             for param in self.__params.values())
+
+    @property
+    def blocks(self):
+        """
+        Return a list whose ith element contains indices for the parameters
+        which make up the ith block.
+        """
+        blocks = dict()
+        a = 0
+        for param in self.__params.values():
+            b = a + param.value.size
+            blocks.setdefault(param.block, []).extend(range(a, b))
+            a = b
+        return blocks.values()
+
+    @property
+    def block(self):
+        """Get the block assignment of the parameter set."""
+        return [param.block for param in self.__params.values()]
+
+    @block.setter
+    def block(self, value):
+        """Set the block assignment of the parameter set."""
+        if np.isscalar(value):
+            value = [value] * len(self.__params)
+        if len(value) != len(self.__params):
+            raise ValueError('invalid block assignment')
+        for block, param in zip(value, self.__params.values()):
+            param.block = block
+
+    @property
+    def names(self):
+        """
+        Return a list of names for each parameter.
+        """
+        names = []
+        for name, param in self.__params.items():
+            if param.value.size == 1:
+                names.append(name)
+            else:
+                names.extend('{:s}[{:d}]'.format(name, n)
+                             for n in xrange(param.value.size))
+        return names
+
+    def describe(self):
+        """
+        Describe the structure of the object in terms of its hyperparameters.
+        """
+        headers = ['name', 'domain', 'prior', 'size', 'block']
+        table = []
+        for name, param in self.__params.items():
+            prior = '-' if param.prior is None else str(param.prior)
+            table.append([name, param.domain, prior, param.value.size,
+                          param.block])
+        print(tabulate.tabulate(table, headers))
+
+    def set_prior(self, prior, *args, **kwargs):
+        if len(self.__params) > 1:
+            raise RuntimeError('priors cannot be set for more than one '
+                               'parameter at a time')
+        self.__params.values()[0].set_prior(prior, *args, **kwargs)
+        self.__obj._update()
+
+    def get_value(self, transform=False):
+        """Get the value of the parameters."""
+        if self.size == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.get_value(transform)
+                             for param in self.__params.values())
+
+    def set_value(self, theta, transform=False):
+        """Set the value of the parameters."""
+        theta = np.array(theta, dtype=float, copy=False, ndmin=1)
+        if theta.shape != (self.size,):
+            raise ValueError('incorrect number of parameters')
+        a = 0
+        for param in self.__params.values():
+            b = a + param.value.size
+            param.set_value(theta[a:b], transform)
+            a = b
+        self.__obj._update()
+
+    def get_bounds(self, transform=False):
+        """
+        Get bounds on the hyperparameters. If `transform` is True then these
+        bounds are those in the transformed space.
+        """
+        bounds = np.tile((-np.inf, np.inf), (self.size, 1))
+        a = 0
+        for param in self.__params.values():
+            b = a + param.value.size
+            if transform:
+                bounds[a:b] = [
+                    param.transform.get_transform(_)
+                    for _ in np.array(param.bounds, ndmin=2)]
+            else:
+                bounds[a:b] = param.bounds
+            a = b
+        return bounds
+
+    def get_logprior(self, grad=False):
+        """
+        Return the log probability of parameter assignments to a parameterized
+        object as well as the gradient with respect to those parameters.
+        """
+        if not grad:
+            return sum(param.get_logprior(False)
+                       for param in self.__params.values())
+
+        elif self.size == 0:
+            return 0, np.array([])
+
+        else:
+            logp = 0.0
+            dlogp = []
+            for param in self.__params.values():
+                elem = param.get_logprior(True)
+                logp += elem[0]
+                dlogp.append(elem[1])
+            return logp, np.hstack(dlogp)
+
+
 class Parameterized(object):
     """
     Representation of a parameterized object.
     """
-    def __new__(cls, *args, **kwargs):
-        self = super(Parameterized, cls).__new__(cls, *args, **kwargs)
-        # pylint: disable=W0212
-        self.__params = collections.OrderedDict()
-        return self
+    def __init__(self):
+        self.params = Parameters(self)
 
     def __info__(self):
         return []
 
     def __repr__(self):
         typename = self.__class__.__name__
-        items = self.__params.items() + self.__info__()
         parts = []
-        for name, param in items:
+        for name, param in self.__info__():
             if isinstance(param, np.ndarray):
-                value = _ndprint(param)
+                if param.shape == ():
+                    value = '{:.2f}'.format(param.flat[0])
+                else:
+                    value = '[' * param.ndim
+                    value += ', '.join('{:.2f}'.format(_)
+                                       for _ in param.flat[:2])
+                    if param.size > 3:
+                        value += ', ..., '
+                    if param.size > 2:
+                        value += '{:.2f}'.format(param.flat[-1])
+                    value += ']' * param.ndim
             else:
                 value = repr(param)
             parts.append('{:s}={:s}'.format(name, value))
@@ -210,37 +375,8 @@ class Parameterized(object):
         # populate the memo with our param values so that these get copied
         # first. this is in order to work around the 0-dimensional array bug
         # noted in Parameter.
-        for param in self.__params.values():
-            copy.deepcopy(param, memo)
+        copy.deepcopy(self.params, memo)
         return _deepcopy(self, memo)
-
-    def __get_param(self, key):
-        """
-        Return the parameter object associated with the given key.
-        """
-        node = self
-        try:
-            for part in key.split('.'):
-                # pylint: disable=W0212
-                node = node.__params[part]
-            if not isinstance(node, Parameter):
-                raise KeyError
-        except KeyError:
-            raise ValueError('Unknown parameter: {:s}'.format(key))
-        return node
-
-    def __walk_params(self):
-        """
-        Walk the set of parameters, yielding the Parameter objects via a
-        depth-first traversal.
-        """
-        for name, param in self.__params.items():
-            if isinstance(param, Parameterized):
-                # pylint: disable=W0212
-                for name_, param_ in param.__walk_params():
-                    yield name + '.' + name_, param_
-            else:
-                yield name, param
 
     def copy(self, theta=None, transform=False):
         """
@@ -250,201 +386,45 @@ class Parameterized(object):
         """
         obj = copy.deepcopy(self)
         if theta is not None:
-            obj.set_params(theta, transform)
+            obj.params.set_value(theta, transform)
         return obj
 
-    def _register(self, name, param, klass=None, domain=REAL, shape=()):
+    def _update(self):
         """
-        Register a parameter given a `(name, param)` pair. If `klass` is given
-        then this should be a Parameterized object of the given class.
-        Otherwise `domain` and `shape` can be used to specify the domain and
-        shape of a Parameter object.
+        Update any internal parameters (sufficient statistics, etc.).
         """
-        if name in self.__params:
-            raise ValueError("parameter '{:s}' has already been registered"
-                             .format(name))
+        pass
 
+    def _register(self, name, param, domain=REAL, shape=()):
+        try:
+            # create the parameter vector
+            ndmin = len(shape)
+            param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
+
+        except (TypeError, ValueError):
+            raise ValueError("parameter '{:s}' not array-like".format(name))
+
+        # construct the desired shape
+        shapes = dict()
+        shape_ = tuple(
+            (shapes.setdefault(d, d_) if isinstance(d, str) else d)
+            for (d, d_) in zip(shape, param.shape))
+
+        # check the size of the parameter
+        if param.shape != shape_:
+            raise ValueError("parameter '{:s}' does not have shape ({:s})"
+                             .format(name, ', '.join(map(str, shape))))
+
+        # save the parameter
+        self.params._register(name, Parameter(param, domain))
+
+        # return the array
+        return param
+
+    def _pregister(self, name, param, klass=None):
         if klass is not None and not isinstance(param, klass):
             raise ValueError("parameter '{:s}' must be of type {:s}"
                              .format(name, klass.__name__))
-
-        if isinstance(param, Parameterized):
-            # copy the parameterized object
-            param = param.copy()
-
-            # if no name is given then store each of the sub-parameters;
-            # otherwise store the parameter itself.
-            if name is None:
-                # pylint: disable=W0212
-                for n, p in param.__params.items():
-                    self.__params[n] = p
-            else:
-                self.__params[name] = param
-
-        else:
-            try:
-                # create the parameter vector
-                ndmin = len(shape)
-                param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
-
-            except (TypeError, ValueError):
-                raise ValueError("parameter '{:s}' must be array-like"
-                                 .format(name))
-
-            # construct the desired shape
-            shapes = dict()
-            shape_ = tuple(
-                (shapes.setdefault(d, d_) if isinstance(d, str) else d)
-                for (d, d_) in zip(shape, param.shape))
-
-            # check the size of the parameter
-            if param.shape != shape_:
-                raise ValueError("parameter '{:s}' must have shape ({:s})"
-                                 .format(name, ', '.join(map(str, shape))))
-
-            # save the parameter
-            self.__params[name] = Parameter(param, domain)
-
-        # return either the value of a Parameter instance or the Parameterized
-        # object so that it can be used by the actual model
+        param = param.copy()
+        self.params._register(name, param.params)
         return param
-
-    @property
-    def nparams(self):
-        """
-        Return the number of parameters for this object.
-        """
-        return sum(param.nparams for _, param in self.__walk_params())
-
-    @property
-    def blocks(self):
-        """
-        Return a list whose ith element contains indices for the parameters
-        which make up the ith block.
-        """
-        blocks = dict()
-        a = 0
-        for _, param in self.__walk_params():
-            b = a + param.nparams
-            blocks.setdefault(param.block, []).extend(range(a, b))
-            a = b
-        return blocks.values()
-
-    @property
-    def names(self):
-        """
-        Return a list of names for each parameter.
-        """
-        names = []
-        for name, param in self.__walk_params():
-            if param.nparams == 1:
-                names.append(name)
-            else:
-                names.extend('{:s}[{:d}]'.format(name, n)
-                             for n in xrange(param.nparams))
-        return names
-
-    @property
-    def gradfactor(self):
-        """
-        Return the gradient factor which should be multipled by any gradient in
-        order to define a gradient in the transformed space.
-        """
-        if self.nparams == 0:
-            return np.array([])
-        else:
-            return np.hstack(param.get_gradfactor()
-                             for _, param in self.__walk_params())
-
-    def describe(self):
-        """
-        Describe the structure of the object in terms of its hyperparameters.
-        """
-        headers = ['name', 'value', 'domain', 'prior', 'block']
-        table = []
-        for name, param in self.__walk_params():
-            prior = '-' if param.prior is None else str(param.prior)
-            table.append([name, str(param), param.domain, prior, param.block])
-        print(tabulate.tabulate(table, headers, numalign=None))
-
-    def set_param(self, key, theta):
-        """
-        Set the value of the named parameter.
-        """
-        self.__get_param(key).set_params(np.array(theta, ndmin=1, copy=False))
-
-    def set_prior(self, key, prior, *args, **kwargs):
-        """
-        Set the prior of the named parameter.
-        """
-        self.__get_param(key).set_prior(prior, *args, **kwargs)
-
-    def set_block(self, key, block):
-        """
-        Set the block of the named parameter (used by sampling methods).
-        """
-        # pylint: disable=W0201
-        self.__get_param(key).block = block
-
-    def set_params(self, theta, transform=False):
-        """
-        Given a parameter vector of the appropriate size, assign the values of
-        this vector to the internal parameters.
-        """
-        theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-        if theta.shape != (self.nparams,):
-            raise ValueError('incorrect number of parameters')
-        a = 0
-        for _, param in self.__walk_params():
-            b = a + param.nparams
-            param.set_params(theta[a:b], transform)
-            a = b
-
-    def get_params(self, transform=False):
-        """
-        Return a flattened vector consisting of the parameters for the object.
-        """
-        if self.nparams == 0:
-            return np.array([])
-        else:
-            return np.hstack(param.get_params(transform)
-                             for _, param in self.__walk_params())
-
-    def get_logprior(self, grad=False):
-        """
-        Return the log probability of parameter assignments to a parameterized
-        object as well as the gradient with respect to those parameters.
-        """
-        if not grad:
-            return sum(param.get_logprior(False)
-                       for _, param in self.__walk_params())
-
-        elif self.nparams == 0:
-            return 0, np.array([])
-
-        else:
-            logp = 0.0
-            dlogp = []
-            for _, param in self.__walk_params():
-                elem = param.get_logprior(True)
-                logp += elem[0]
-                dlogp.append(elem[1])
-            return logp, np.hstack(dlogp)
-
-    def get_bounds(self, transform=False):
-        """
-        Get bounds on the hyperparameters. If `transform` is True then these
-        bounds are those in the transformed space.
-        """
-        bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
-        a = 0
-        for _, param in self.__walk_params():
-            b = a + param.nparams
-            if transform:
-                bounds[a:b] = [
-                    param.transform.get_transform(_)
-                    for _ in np.array(param.bounds, ndmin=2)]
-            else:
-                bounds[a:b] = param.bounds
-            a = b
-        return bounds

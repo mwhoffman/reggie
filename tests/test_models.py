@@ -43,7 +43,7 @@ class ModelTest(object):
         _, _ = self.model.get_loglike(True)
 
         # and test the gradients
-        x = self.model.get_params()
+        x = self.model.params.get_value()
         f = lambda x: self.model.copy(x).get_loglike()
         _, g1 = self.model.get_loglike(grad=True)
         g2 = spop.approx_fprime(x, f, 1e-8)

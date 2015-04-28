@@ -18,6 +18,8 @@ __all__ = ['Matern']
 
 class Matern(RealKernel):
     def __init__(self, rho, ell, d=3, ndim=None):
+        super(Matern, self).__init__()
+
         if d not in {1, 3, 5}:
             raise ValueError('d must be one of 1, 3, or 5')
 
@@ -25,8 +27,8 @@ class Matern(RealKernel):
         shape = ('d',) if (ndim is None) else ()
 
         # register our parameters
-        self._rho = self._register('rho', rho, domain=POSITIVE)
-        self._ell = self._register('ell', ell, domain=POSITIVE, shape=shape)
+        self._rho = self._register('rho', rho, POSITIVE)
+        self._ell = self._register('ell', ell, POSITIVE, shape)
 
         # save flags for iso/ndim
         self._d = d
@@ -34,7 +36,9 @@ class Matern(RealKernel):
         self.ndim = ndim if self._iso else self._ell.size
 
     def __info__(self):
-        info = super(Matern, self).__info__()
+        info = []
+        info.append(('rho', self._rho))
+        info.append(('ell', self._ell))
         if self._iso:
             info.append(('ndim', self.ndim))
         if self._d != 3:
@@ -80,7 +84,7 @@ class Matern(RealKernel):
 
     def get_dgrad(self, X1):
         yield np.ones(len(X1))
-        for _ in xrange(self.nparams-1):
+        for _ in xrange(self.params.size-1):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
