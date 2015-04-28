@@ -22,10 +22,6 @@ from .domains import BOUNDS, TRANSFORMS
 __all__ = ['Parameterized']
 
 
-# CONSTANTS FOR ADJUSTING PARAMETER FORMATTING
-PRECISION = 2
-
-
 def _outbounds(bounds, theta):
     """
     Check whether a vector is inside the given bounds.
@@ -48,20 +44,6 @@ def _deepcopy(obj, memo):
     return ret
 
 
-def _ndprint(arr):
-    if arr.shape == ():
-        value = '{:.2f}'.format(arr.flat[0])
-    else:
-        value = '[' * arr.ndim
-        value += ', '.join('{:.2f}'.format(_) for _ in arr.flat[:2])
-        if arr.size > 3:
-            value += ', ..., '
-        if arr.size > 2:
-            value += '{:.2f}'.format(arr.flat[-1])
-        value += ']' * arr.ndim
-    return value
-
-
 class Parameter(object):
     """
     Representation of a single parameter array.
@@ -82,10 +64,6 @@ class Parameter(object):
         # array when called on a 0-dimensional object.
         memo[id(self.value)] = self.value.copy()
         return _deepcopy(self, memo)
-
-    @property
-    def nparams(self):
-        return self.value.size
 
     @property
     def gradfactor(self):
@@ -217,7 +195,7 @@ class Parameters(object):
         """
         Return the number of parameters for this object.
         """
-        return sum(param.nparams for param in self.__params.values())
+        return sum(param.value.size for param in self.__params.values())
 
     @property
     def gradfactor(self):
@@ -240,7 +218,7 @@ class Parameters(object):
         blocks = dict()
         a = 0
         for param in self.__params.values():
-            b = a + param.nparams
+            b = a + param.value.size
             blocks.setdefault(param.block, []).extend(range(a, b))
             a = b
         return blocks.values()
@@ -267,11 +245,11 @@ class Parameters(object):
         """
         names = []
         for name, param in self.__params.items():
-            if param.nparams == 1:
+            if param.value.size == 1:
                 names.append(name)
             else:
                 names.extend('{:s}[{:d}]'.format(name, n)
-                             for n in xrange(param.nparams))
+                             for n in xrange(param.value.size))
         return names
 
     def describe(self):
@@ -282,13 +260,13 @@ class Parameters(object):
         table = []
         for name, param in self.__params.items():
             prior = '-' if param.prior is None else str(param.prior)
-            table.append([name, param.domain, prior, param.nparams,
+            table.append([name, param.domain, prior, param.value.size,
                           param.block])
         print(tabulate.tabulate(table, headers))
 
     def set_prior(self, prior, *args, **kwargs):
         if len(self.__params) > 1:
-            raise RuntimeError('priors cannot be set for more than one'
+            raise RuntimeError('priors cannot be set for more than one '
                                'parameter at a time')
         self.__params.values()[0].set_prior(prior, *args, **kwargs)
         self.__obj._update()
@@ -304,11 +282,11 @@ class Parameters(object):
     def set_value(self, theta, transform=False):
         """Set the value of the parameters."""
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-        if theta.shape != (self.__obj.nparams,):
+        if theta.shape != (self.nparams,):
             raise ValueError('incorrect number of parameters')
         a = 0
         for param in self.__params.values():
-            b = a + param.nparams
+            b = a + param.value.size
             param.set_value(theta[a:b], transform)
             a = b
         self.__obj._update()
@@ -321,7 +299,7 @@ class Parameters(object):
         bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
         a = 0
         for param in self.__params.values():
-            b = a + param.nparams
+            b = a + param.value.size
             if transform:
                 bounds[a:b] = [
                     param.transform.get_transform(_)
@@ -412,7 +390,7 @@ class Parameterized(object):
         """
         obj = copy.deepcopy(self)
         if theta is not None:
-            obj.set_params(theta, transform)
+            obj.params.set_value(theta, transform)
         return obj
 
     def _update(self):
@@ -421,52 +399,36 @@ class Parameterized(object):
         """
         pass
 
-    def _register(self, name, param, *args):
-        """
-        Register a parameter given a `(name, param)` pair. Here `param` should
-        be either a Parameterized or an array-like object. If `param` is of
-        class Parameterized then name can be None in order to hide the
-        hierarchy; otherwise it should be a string identifier.
-        """
-        if isinstance(param, Parameterized):
-            if len(args) > 0 and not isinstance(param, args[0]):
-                raise ValueError("parameter '{:s}' must be of type {:s}"
-                                 .format(name, args[0].__name__))
+    def _register(self, name, param, domain=REAL, shape=()):
+        try:
+            # create the parameter vector
+            ndmin = len(shape)
+            param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
 
-            if len(args) > 1:
-                raise ValueError('unknown constraints passed to _register')
+        except (TypeError, ValueError):
+            raise ValueError("parameter '{:s}' not array-like".format(name))
 
-            # copy the parameterized object
-            param = param.copy()
-            self.params._register(name, param.params)
+        # construct the desired shape
+        shapes = dict()
+        shape_ = tuple(
+            (shapes.setdefault(d, d_) if isinstance(d, str) else d)
+            for (d, d_) in zip(shape, param.shape))
 
-        else:
-            domain = args[0] if len(args) > 0 else REAL
-            shape = args[1] if len(args) > 1 else ()
+        # check the size of the parameter
+        if param.shape != shape_:
+            raise ValueError("parameter '{:s}' does not have shape ({:s})"
+                             .format(name, ', '.join(map(str, shape))))
 
-            try:
-                # create the parameter vector
-                ndmin = len(shape)
-                param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
+        # save the parameter
+        self.params._register(name, Parameter(param, domain))
 
-            except (TypeError, ValueError):
-                raise ValueError("parameter '{:s}' must be array-like"
-                                 .format(name))
+        # return the array
+        return param
 
-            # construct the desired shape
-            shapes = dict()
-            shape_ = tuple(
-                (shapes.setdefault(d, d_) if isinstance(d, str) else d)
-                for (d, d_) in zip(shape, param.shape))
-
-            # check the size of the parameter
-            if param.shape != shape_:
-                raise ValueError("parameter '{:s}' must have shape ({:s})"
-                                 .format(name, ', '.join(map(str, shape))))
-
-            # save the parameter
-            self.params._register(name, Parameter(param, domain))
-
-        # return either the value of a Parameter instance or the Parameterized
-        # object so that it can be used by the actual model
+    def _pregister(self, name, param, klass=None):
+        if klass is not None and not isinstance(param, klass):
+            raise ValueError("parameter '{:s}' must be of type {:s}"
+                             .format(name, klass.__name__))
+        param = param.copy()
+        self.params._register(name, param.params)
         return param

@@ -31,7 +31,7 @@ class GP(Model):
 
         # register hyperparameters
         super(GP, self).__init__()
-        self._post = self._register(None, post)
+        self._post = self._pregister(None, post)
 
     def __info__(self):
         info = self._post.__info__()

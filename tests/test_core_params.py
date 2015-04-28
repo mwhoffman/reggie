@@ -19,30 +19,68 @@ from reggie.core.params import Parameterized
 
 class Child(Parameterized):
     def __init__(self, a, b):
-        self.a = self._register('a', a, domain=REAL, shape='dd')
-        self.b = self._register('b', b, domain=POSITIVE)
+        super(Child, self).__init__()
+        self.a = self._register('a', a, REAL, 'dd')
+        self.b = self._register('b', b, POSITIVE)
 
 
 class Parent(Parameterized):
     def __init__(self, a, b):
-        self.a = self._register('a', a, Child)
-        self.b = self._register('b', b, Child)
+        super(Parent, self).__init__()
+        self.a = self._pregister('a', a, Child)
+        self.b = self._pregister('b', b, Child)
 
 
 class Empty(Parameterized):
     pass
 
 
-def test_init():
-    nt.assert_raises(ValueError, Child, np.random.rand(4, 3), 1)
-    nt.assert_raises(ValueError, Parent, 1, 2)
+class Clashing1(Parameterized):
+    def __init__(self):
+        super(Clashing1, self).__init__()
+        self._register('a', 1)
+        self._register('a', 1)
 
+
+class Clashing2(Parameterized):
+    def __init__(self):
+        super(Clashing2, self).__init__()
+        self._register('a', 1)
+        self._pregister(None, Child(1, 1))
+
+
+class NonArray(Parameterized):
+    def __init__(self):
+        super(NonArray, self).__init__()
+        self._register('a', 'asdf')
+
+
+def test_empty():
+    params = Empty().params
+    nt.assert_equal(params.gradfactor, np.array([]))
+    nt.assert_equal(params.get_value(), np.array([]))
+    nt.assert_equal(params.get_logprior(), 0)
+    nt.assert_equal(params.get_logprior(True), (0, np.array([])))
+
+
+def test_register():
+    # the following classes should raise errors when instantiated due to the
+    # fact that they call register incorrectly
+    nt.assert_raises(ValueError, Clashing1)
+    nt.assert_raises(ValueError, Clashing2)
+    nt.assert_raises(ValueError, NonArray)
+
+    # trying to register something that is not an instance of Parameter or
+    # Parameters should fail; however this shouldn't be called directly.
+    nt.assert_raises(ValueError, Child(1, 1).params._register, 'foo', 1)
+
+    # this should fail due to incorrect size of the first parameter
+    nt.assert_raises(ValueError, Child, np.random.rand(5, 2), 1)
+
+    # the following should fail since Parent expects a Child in first position
     a = Child(1, 1)
-    obj = Parent(a, a)
-
-    assert id(obj.a) != id(obj.b)
-    nt.assert_raises(ValueError, Child, 1, 'asdf')
-    nt.assert_raises(ValueError, obj._register, 'a', 1)
+    b = Parent(a, a)
+    nt.assert_raises(ValueError, Parent, b, a)
 
 
 class TestParams(object):
@@ -52,17 +90,21 @@ class TestParams(object):
 
         # create a parent object to test
         self.obj = Parent(a, b)
-        self.obj.set_prior('a.a', 'normal', 1, 2)
-        self.obj.set_prior('a.b', 'uniform', 1, 2)
-        self.obj.set_prior('b.a', 'uniform', np.full(4, 1), np.full(4, 2))
-        self.obj.set_prior('b.b', None)
+        self.params = self.obj.params
 
-        # create an empty object
-        self.empty = Empty()
+        # set some priors
+        self.params['a.a'].set_prior('normal', 1, 2)
+        self.params['a.b'].set_prior('uniform', 1, 2)
+        self.params['b.a'].set_prior(None)
+        self.params['b.a'].set_prior('uniform', np.full(4, 1), np.full(4, 2))
+
+    def test_getitem(self):
+        nt.assert_raises(ValueError, self.params.__getitem__, ('a.a', 'a.a'))
+        nt.assert_raises(ValueError, self.params.__getitem__, 'foo')
 
     def test_pretty(self):
         _ = repr(self.obj)
-        _ = self.obj.describe()
+        _ = self.params.describe()
 
     def test_copy(self):
         obj = self.obj.copy()
@@ -70,61 +112,69 @@ class TestParams(object):
         assert id(obj.a.a) != id(self.obj.a.a)
 
         theta = 1.5 * np.ones(self.obj.nparams)
-        obj = self.obj.copy(theta)
-        nt.assert_equal(obj.get_params(), theta)
+        params = self.obj.copy(theta).params
+        nt.assert_equal(params.get_value(), theta)
 
     def test_transform(self):
-        obj = self.obj.copy(self.obj.get_params(True), True)
-        nt.assert_equal(obj.get_params(), self.obj.get_params())
+        params = self.obj.copy(self.params.get_value(True), True).params
+        nt.assert_equal(params.get_value(),
+                        self.params.get_value())
 
     def test_set_param(self):
-        nt.assert_raises(ValueError, self.obj.set_param, 'a', 0)
-        nt.assert_raises(ValueError, self.obj.set_param, 'a.b', 0)
-        nt.assert_raises(ValueError, self.obj.set_param, 'asdf', 0)
-        self.obj.set_param('a.a', 0)
-        nt.assert_equal(self.obj.a.a, 0)
+        # try to set out of bounds
+        set_value = self.params['a.b'].set_value
+        nt.assert_raises(ValueError, set_value, 0)
+
+        # make sure the value changes
+        set_value(1)
+        nt.assert_equal(self.obj.a.a, 1)
 
     def test_set_params(self):
-        nt.assert_raises(ValueError, self.obj.set_params, 1)
+        nt.assert_raises(ValueError, self.params.set_value, 1)
 
         theta = 1.5 * np.ones(self.obj.nparams)
-        self.obj.set_params(theta)
+        self.params.set_value(theta)
 
-        nt.assert_equal(self.obj.get_params(), 1.5)
+        nt.assert_equal(self.params.get_value(), 1.5)
         nt.assert_equal(self.obj.a.a, 1.5)
 
     def test_get_params(self):
-        nt.assert_equal(self.obj.get_params(), np.ones(self.obj.nparams))
-        nt.assert_equal(self.empty.get_params(), np.array([]))
+        nt.assert_equal(self.params.get_value(), np.ones(self.obj.nparams))
 
     def test_gradfactor(self):
-        nt.assert_equal(self.obj.gradfactor, np.ones(self.obj.nparams))
-        nt.assert_equal(self.empty.gradfactor, np.array([]))
+        nt.assert_equal(self.params.gradfactor, np.ones(self.obj.nparams))
 
     def test_priors(self):
-        set_prior = self.obj.set_prior
-        nt.assert_raises(ValueError, set_prior, 'a.b', 'uniform', -1, 1)
-        nt.assert_warns(UserWarning, set_prior, 'a.a', 'uniform', 1.3, 2)
+        set_prior = self.params['a.a', 'a.b'].set_prior
+        nt.assert_raises(RuntimeError, set_prior, 'uniform', 1.3, 2)
 
-        _ = self.obj.get_logprior()
-        _, _ = self.obj.get_logprior(True)
+        set_prior = self.params['a.b'].set_prior
+        nt.assert_raises(ValueError, set_prior, 'uniform', -1, 1)
 
-        nt.assert_equal(self.empty.get_logprior(), 0)
-        nt.assert_equal(self.empty.get_logprior(True), (0, np.array([])))
+        set_prior = self.params['a.a'].set_prior
+        nt.assert_warns(UserWarning, set_prior, 'uniform', 1.3, 2)
+
+        _ = self.params.get_logprior()
+        _, _ = self.params.get_logprior(True)
 
     def test_bounds(self):
-        assert not np.any(np.isnan(self.obj.get_bounds()))
-        assert not np.any(np.isnan(self.obj.get_bounds(True)))
+        assert not np.any(np.isnan(self.params.get_bounds()))
+        assert not np.any(np.isnan(self.params.get_bounds(True)))
 
     def test_blocks(self):
-        self.obj.set_block('a.a', 1)
-        self.obj.set_block('a.b', 1)
+        self.params['a.a', 'a.b'].block = 1
         blocks1 = {(0, 1), tuple(range(2, 7))}
-        blocks2 = set(map(tuple, self.obj.blocks))
+        blocks2 = set(map(tuple, self.params.blocks))
+        nt.assert_equal([1, 1, 0, 0], self.params.block)
         nt.assert_equal(blocks1, blocks2)
+
+        # invalid block assignment
+        def assign():
+            self.params.block = [1, 1]
+        nt.assert_raises(ValueError, assign)
 
     def test_names(self):
         names = ['a.a', 'a.b']
         names.extend(['b.a[{:d}]'.format(i) for i in xrange(4)])
         names.append('b.b')
-        nt.assert_equal(self.obj.names, names)
+        nt.assert_equal(self.params.names, names)

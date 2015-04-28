@@ -32,7 +32,7 @@ class FunctionTest(object):
 
     def test_get_grad(self):
         if self.function.nparams > 0:
-            x = self.function.get_params()
+            x = self.function.params.get_value()
             f = lambda x, x_: self.function.copy(x)(x_)
             G1 = np.array(list(self.function.get_grad(self.X)))
             G2 = np.array([spop.approx_fprime(x, f, 1e-8, x_)

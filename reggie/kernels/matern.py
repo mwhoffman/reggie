@@ -40,7 +40,7 @@ class Matern(RealKernel):
         info.append(('rho', self._rho))
         info.append(('ell', self._ell))
         if self._iso:
-            info.append(('ndim', self._ndim))
+            info.append(('ndim', self.ndim))
         if self._d != 3:
             info.append(('d', self._d))
         return info
