@@ -174,9 +174,10 @@ class Parameters(object):
     """
     Representation of a set of parameters bound to a Parameterized object.
     """
-    def __init__(self, obj):
+    def __init__(self, obj, params=None):
+        params = [] if (params is None) else params
         self.__obj = obj
-        self.__params = collections.OrderedDict()
+        self.__params = collections.OrderedDict(params)
 
     def _register(self, name, param):
         if isinstance(param, Parameter):
@@ -191,6 +192,17 @@ class Parameters(object):
                 self._register(n, p)
         else:
             raise ValueError('unknown type passed to _register')
+
+    def __getitem__(self, keys):
+        params = collections.OrderedDict()
+        keys = keys if isinstance(keys, tuple) else (keys,)
+        for key in keys:
+            if key in params:
+                raise ValueError('duplicate key: {:s}'.format(key))
+            if key not in self.__params:
+                raise ValueError('unknown key: {:s}'.format(key))
+            params[key] = self.__params[key]
+        return Parameters(self.__obj, params)
 
     def __deepcopy__(self, memo):
         # populate the memo with our param values so that these get copied
@@ -273,6 +285,13 @@ class Parameters(object):
             table.append([name, param.domain, prior, param.nparams,
                           param.block])
         print(tabulate.tabulate(table, headers))
+
+    def set_prior(self, prior, *args, **kwargs):
+        if len(self.__params) > 1:
+            raise RuntimeError('priors cannot be set for more than one'
+                               'parameter at a time')
+        self.__params.values()[0].set_prior(prior, *args, **kwargs)
+        self.__obj._update()
 
     def get_value(self, transform=False):
         """Get the value of the parameters."""
@@ -451,9 +470,3 @@ class Parameterized(object):
         # return either the value of a Parameter instance or the Parameterized
         # object so that it can be used by the actual model
         return param
-
-    # def set_prior(self, key, prior, *args, **kwargs):
-    #     """
-    #     Set the prior of the named parameter.
-    #     """
-    #     self.__get_param(key).set_prior(prior, *args, **kwargs)
