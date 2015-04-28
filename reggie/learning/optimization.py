@@ -19,7 +19,7 @@ def optimize(model, raw=False):
     # use a copy of the model so we don't modify it while we're optimizing
     model = model.copy()
 
-    if model.nparams == 0:
+    if model.params.size == 0:
         # this is kind of a stupid object to optimize, but we want to make sure
         # that we don't crash if someone decides to do this.
         theta = np.array([])

@@ -74,7 +74,7 @@ class Laplace(Inference):
         implicit = lambda b: np.dot(df, b - np.dot(K, np.dot(R, b)))
 
         # allocate space for the gradients
-        dlZ = np.zeros(self.nparams)
+        dlZ = np.zeros(self.params.size)
 
         # the likelihood derivatives
         i = 0

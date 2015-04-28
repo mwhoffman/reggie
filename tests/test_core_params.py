@@ -111,7 +111,7 @@ class TestParams(object):
         nt.assert_equal(obj.a.a, self.obj.a.a)
         assert id(obj.a.a) != id(self.obj.a.a)
 
-        theta = 1.5 * np.ones(self.obj.nparams)
+        theta = 1.5 * np.ones(self.params.size)
         params = self.obj.copy(theta).params
         nt.assert_equal(params.get_value(), theta)
 
@@ -132,17 +132,17 @@ class TestParams(object):
     def test_set_params(self):
         nt.assert_raises(ValueError, self.params.set_value, 1)
 
-        theta = 1.5 * np.ones(self.obj.nparams)
+        theta = 1.5 * np.ones(self.params.size)
         self.params.set_value(theta)
 
         nt.assert_equal(self.params.get_value(), 1.5)
         nt.assert_equal(self.obj.a.a, 1.5)
 
     def test_get_params(self):
-        nt.assert_equal(self.params.get_value(), np.ones(self.obj.nparams))
+        nt.assert_equal(self.params.get_value(), np.ones(self.params.size))
 
     def test_gradfactor(self):
-        nt.assert_equal(self.params.gradfactor, np.ones(self.obj.nparams))
+        nt.assert_equal(self.params.gradfactor, np.ones(self.params.size))
 
     def test_priors(self):
         set_prior = self.params['a.a', 'a.b'].set_prior

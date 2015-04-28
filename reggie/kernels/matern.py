@@ -84,7 +84,7 @@ class Matern(RealKernel):
 
     def get_dgrad(self, X1):
         yield np.ones(len(X1))
-        for _ in xrange(self.nparams-1):
+        for _ in xrange(self.params.size-1):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):

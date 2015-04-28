@@ -107,7 +107,7 @@ class GP(Model):
 
     def get_loglike(self, grad=False):
         if self.ndata == 0:
-            return (0.0, np.zeros(self.nparams)) if grad else 0.0
+            return (0.0, np.zeros(self.params.size)) if grad else 0.0
         else:
             return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 

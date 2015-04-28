@@ -58,7 +58,7 @@ class FITC(Inference):
         v = 2 * su2 * np.sum(B**2, axis=0)
 
         # allocate space for the derivatives
-        dlZ = np.zeros(self.nparams)
+        dlZ = np.zeros(self.params.size)
 
         # derivative wrt sn2
         dlZ[0] = 0.5 * (
@@ -75,7 +75,7 @@ class FITC(Inference):
         # we need to keep track of how many gradients we've already computed.
         # note also that at the end of the next loop this variable will have
         # changed to track the current number of gradients.
-        i = self.like.nparams
+        i = self.like.params.size
 
         for i, (dKuu, dKux, dkxx) in enumerate(dK, i):
             M = 2*dKux - np.dot(dKuu, B)

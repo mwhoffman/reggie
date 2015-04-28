@@ -31,7 +31,7 @@ class FunctionTest(object):
         nt.assert_equal(F1, F2)
 
     def test_get_grad(self):
-        if self.function.nparams > 0:
+        if self.function.params.size > 0:
             x = self.function.params.get_value()
             f = lambda x, x_: self.function.copy(x)(x_)
             G1 = np.array(list(self.function.get_grad(self.X)))

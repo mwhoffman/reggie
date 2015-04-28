@@ -191,7 +191,7 @@ class Parameters(object):
         return _deepcopy(self, memo)
 
     @property
-    def nparams(self):
+    def size(self):
         """
         Return the number of parameters for this object.
         """
@@ -203,7 +203,7 @@ class Parameters(object):
         Return the gradient factor which should be multipled by any gradient in
         order to define a gradient in the transformed space.
         """
-        if self.nparams == 0:
+        if self.size == 0:
             return np.array([])
         else:
             return np.hstack(param.gradfactor
@@ -273,7 +273,7 @@ class Parameters(object):
 
     def get_value(self, transform=False):
         """Get the value of the parameters."""
-        if self.__obj.nparams == 0:
+        if self.size == 0:
             return np.array([])
         else:
             return np.hstack(param.get_value(transform)
@@ -282,7 +282,7 @@ class Parameters(object):
     def set_value(self, theta, transform=False):
         """Set the value of the parameters."""
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
-        if theta.shape != (self.nparams,):
+        if theta.shape != (self.size,):
             raise ValueError('incorrect number of parameters')
         a = 0
         for param in self.__params.values():
@@ -296,7 +296,7 @@ class Parameters(object):
         Get bounds on the hyperparameters. If `transform` is True then these
         bounds are those in the transformed space.
         """
-        bounds = np.tile((-np.inf, np.inf), (self.nparams, 1))
+        bounds = np.tile((-np.inf, np.inf), (self.size, 1))
         a = 0
         for param in self.__params.values():
             b = a + param.value.size
@@ -318,7 +318,7 @@ class Parameters(object):
             return sum(param.get_logprior(False)
                        for param in self.__params.values())
 
-        elif self.nparams == 0:
+        elif self.size == 0:
             return 0, np.array([])
 
         else:
@@ -377,10 +377,6 @@ class Parameterized(object):
         # noted in Parameter.
         copy.deepcopy(self.params, memo)
         return _deepcopy(self, memo)
-
-    @property
-    def nparams(self):
-        return self.params.nparams
 
     def copy(self, theta=None, transform=False):
         """
