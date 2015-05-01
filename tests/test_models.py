@@ -12,6 +12,7 @@ import numpy as np
 import numpy.testing as nt
 import scipy.optimize as spop
 
+import reggie
 import reggie.models as models
 
 
@@ -31,7 +32,7 @@ class ModelTest(object):
         model = self.model.copy(reset=True)
         model.add_data(X[:n], Y[:n])
         model.add_data(X[n:], Y[n:])
-        nt.assert_allclose(model.get_posterior(X), self.model.get_posterior(X))
+        nt.assert_allclose(model.predict(X), self.model.predict(X))
 
     def test_get_loglike(self):
         # first make sure we can call it with zero data.
@@ -43,34 +44,61 @@ class ModelTest(object):
         _, _ = self.model.get_loglike(True)
 
         # and test the gradients
-        x = self.model.get_params()
+        x = self.model.params.get_value()
         f = lambda x: self.model.copy(x).get_loglike()
         _, g1 = self.model.get_loglike(grad=True)
         g2 = spop.approx_fprime(x, f, 1e-8)
         nt.assert_allclose(g1, g2, rtol=1e-6, atol=1e-6)
 
-    def test_get_posterior(self):
+    def test_predict(self):
         # first check that we can even evaluate the posterior.
         X, _ = self.model.data
-        _ = self.model.get_posterior(X)
+        _ = self.model.predict(X)
 
         # check the mu gradients
-        f = lambda x: self.model.get_posterior(x[None])[0]
-        G1 = self.model.get_posterior(X, grad=True)[2]
+        f = lambda x: self.model.predict(x[None])[0]
+        G1 = self.model.predict(X, grad=True)[2]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
         # check the s2 gradients
-        f = lambda x: self.model.get_posterior(x[None])[1]
-        G1 = self.model.get_posterior(X, grad=True)[3]
+        f = lambda x: self.model.predict(x[None])[1]
+        G1 = self.model.predict(X, grad=True)[3]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
 
 ### PER-INSTANCE TEST CLASSES #################################################
 
+def test_init():
+    like = reggie.likelihoods.Probit()
+    kern = reggie.kernels.SE(1, 1)
+    mean = reggie.functions.Zero()
+    U = np.random.rand(50, 1)
+
+    # make sure the Gaussian-type inference methods raise an exception on
+    # non-Gaussian likelihoods
+    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'exact')
+    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'fitc', U)
+
+
 class TestGP(ModelTest):
     def __init__(self):
-        gp = models.BasicGP(1, 1, [1., 1.])
+        gp = models.make_gp(1, 1, [1., 1.])
+        gp.add_data(np.random.rand(10, 2), np.random.rand(10))
+        ModelTest.__init__(self, gp)
+
+
+class TestGP_FITC(ModelTest):
+    def __init__(self):
+        U = np.random.rand(50, 2)
+        gp = models.make_gp(0.7, 1, [1., 1.], inference='fitc', U=U)
+        gp.add_data(np.random.rand(10, 2), np.random.rand(10))
+        ModelTest.__init__(self, gp)
+
+
+class TestGP_Laplace(ModelTest):
+    def __init__(self):
+        gp = models.make_gp(0.7, 1, [1., 1.], inference='laplace')
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)

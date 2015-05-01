@@ -11,9 +11,10 @@ if __name__ == '__main__':
 
     X = data['X']
     Y = data['y']
+    U = np.linspace(X.min(), X.max(), 10)[:, None]
 
-    # create the GP and optimize the model
-    gp = rg.make_gp(0.1, 1.0, 0.1)
+    # create a basic GP and switch to sparse inference
+    gp = rg.make_gp(0.1, 1.0, 0.1, inference='fitc', U=U)
     gp.add_data(X, Y)
     gp.optimize()
 
@@ -26,9 +27,10 @@ if __name__ == '__main__':
     fig.hold()
     fig.plot_banded(x, mu, 2*np.sqrt(s2))
     fig.scatter(X, Y)
+    fig.scatter(U, np.full_like(U, -1), 'x')
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
-    fig.title = 'Basic GP'
+    fig.title = 'Sparse GP (FITC)'
     fig.draw()
 
     # show the figure

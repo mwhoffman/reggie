@@ -23,16 +23,28 @@ class Zero(Function):
     def get_grad(self, X):
         return iter([])
 
+    def get_gradx(self, X):
+        return np.zeros_like(X)
+
 
 class Constant(Function):
     """
     Function which returns a constant value on any input.
     """
     def __init__(self, bias=0):
+        super(Constant, self).__init__()
         self._bias = self._register('bias', bias)
+
+    def __info__(self):
+        info = []
+        info.append(('bias', self._bias))
+        return info
 
     def get_function(self, X):
         return np.full(len(X), self._bias)
 
     def get_grad(self, X):
         yield np.ones(len(X))
+
+    def get_gradx(self, X):
+        return np.zeros_like(X)

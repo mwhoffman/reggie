@@ -44,8 +44,8 @@ class MetaMCMC(object):
         self._models = [model]
         self._resample(model.ndata > 2*nprev)
 
-    def get_posterior(self, X, grad=False, predictive=False):
-        parts = map(np.array, zip(*[_.get_posterior(X, grad, predictive)
+    def predict(self, X, grad=False, predictive=False):
+        parts = map(np.array, zip(*[_.predict(X, grad, predictive)
                                     for _ in self._models]))
 
         mu_, s2_ = parts[:2]
@@ -65,7 +65,7 @@ class MetaMCMC(object):
         return mu, s2, dmu, ds2
 
     def get_samples(self):
-        return np.array([m.get_params() for m in self._models])
+        return np.array([m.params.get_value() for m in self._models])
 
     @property
     def names(self):

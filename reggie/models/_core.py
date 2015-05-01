@@ -26,6 +26,12 @@ class Model(Parameterized):
         self._Y = None
         return self
 
+    def __deepcopy__(self, memo):
+        # don't make a copy of the data.
+        memo[id(self._X)] = self._X
+        memo[id(self._Y)] = self._Y
+        return super(Model, self).__deepcopy__(memo)
+
     @property
     def ndata(self):
         """
@@ -40,21 +46,6 @@ class Model(Parameterized):
         """
         return (self._X, self._Y)
 
-    def reset(self):
-        """
-        Reset the model by removing all data and recomputing or resetting any
-        internal statistics.
-        """
-        self._X = None
-        self._Y = None
-        self._update()
-
-    def __deepcopy__(self, memo):
-        # don't make a copy of the data.
-        memo[id(self._X)] = self._X
-        memo[id(self._Y)] = self._Y
-        return super(Model, self).__deepcopy__(memo)
-
     def copy(self, theta=None, transform=False, reset=False):
         """
         Copy the model structure. If `theta` is given then also modify the
@@ -68,6 +59,15 @@ class Model(Parameterized):
             obj.reset()
         return obj
 
+    def reset(self):
+        """
+        Reset the model by removing all data and recomputing or resetting any
+        internal statistics.
+        """
+        self._X = None
+        self._Y = None
+        self._update()
+
     def add_data(self, X, Y):
         """
         Add a new set of input/output data to the model.
@@ -78,24 +78,23 @@ class Model(Parameterized):
         if self._X is None:
             self._X = X.copy()
             self._Y = Y.copy()
-            self._update()
-
         else:
-            try:
-                self._updateinc(X, Y)
-                self._X = np.r_[self._X, X]
-                self._Y = np.r_[self._Y, Y]
+            self._X = np.r_[self._X, X]
+            self._Y = np.r_[self._Y, Y]
 
-            except NotImplementedError:
-                self._X = np.r_[self._X, X]
-                self._Y = np.r_[self._Y, Y]
-                self._update()
+        self._update()
 
     def optimize(self):
         """
         Set the parameters to their MAP estimates.
         """
-        self.set_params(optimize(self, True), True)
+        self.params.set_value(optimize(self, raw=True), transform=True)
+
+    def get_loglike(self, grad=False):
+        """
+        Evaluate the log-likelihood.
+        """
+        raise NotImplementedError
 
     def sample(self, X, m=None, latent=True, rng=None):
         """
@@ -103,41 +102,9 @@ class Model(Parameterized):
         """
         raise NotImplementedError
 
-    def get_loglike(self, grad=False):
-        """
-        Get the log-likelihood of the model (and its gradient if requested).
-        """
-        raise NotImplementedError
-
-    def get_posterior(self, X, grad=False):
+    def predict(self, X, grad=False):
         """
         Compute the first two moments of the marginal posterior, evaluated at
         input points X.
         """
         raise NotImplementedError
-
-    def _update(self):
-        """
-        Update any internal parameters (sufficient statistics, etc.).
-        """
-        pass
-
-    def _updateinc(self, X, Y):
-        """
-        Update the sufficient-statistics of a model given new data instances.
-        """
-        raise NotImplementedError
-
-    def set_prior(self, key, prior, *args, **kwargs):
-        super(Model, self).set_prior(key, prior, *args, **kwargs)
-        # NOTE: changing the prior doesn't necessarily change the parameters,
-        # so we don't necessarily need to update, but this is not too costly.
-        self._update()
-
-    def set_param(self, key, theta):
-        super(Model, self).set_param(key, theta)
-        self._update()
-
-    def set_params(self, theta, transform=False):
-        super(Model, self).set_params(theta, transform)
-        self._update()

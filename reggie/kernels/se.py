@@ -24,22 +24,26 @@ class SE(RealKernel):
     isotropic and ell must be a scalar.
     """
     def __init__(self, rho, ell, ndim=None):
+        super(SE, self).__init__()
+
         # get the shape that ell should be
         shape = ('d',) if (ndim is None) else ()
 
         # register our parameters
-        self._rho = self._register('rho', rho, domain=POSITIVE)
-        self._ell = self._register('ell', ell, domain=POSITIVE, shape=shape)
+        self._rho = self._register('rho', rho, POSITIVE)
+        self._ell = self._register('ell', ell, POSITIVE, shape)
 
         # save flags for iso/ndim
         self._iso = ndim is not None
         self.ndim = ndim if self._iso else self._ell.size
 
-    def __repr__(self):
+    def __info__(self):
+        info = []
+        info.append(('rho', self._rho))
+        info.append(('ell', self._ell))
         if self._iso:
-            return super(SE, self).__repr__(ndim=self.ndim)
-        else:
-            return super(SE, self).__repr__()
+            info.append(('ndim', self.ndim))
+        return info
 
     def get_kernel(self, X1, X2=None):
         X1, X2 = rescale(self._ell, X1, X2)
@@ -65,7 +69,7 @@ class SE(RealKernel):
 
     def get_dgrad(self, X1):
         yield np.ones(len(X1))
-        for _ in xrange(self.nparams-1):
+        for _ in xrange(self.params.size-1):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
