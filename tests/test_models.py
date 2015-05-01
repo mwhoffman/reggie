@@ -12,6 +12,7 @@ import numpy as np
 import numpy.testing as nt
 import scipy.optimize as spop
 
+import reggie
 import reggie.models as models
 
 
@@ -68,6 +69,18 @@ class ModelTest(object):
 
 
 ### PER-INSTANCE TEST CLASSES #################################################
+
+def test_init():
+    like = reggie.likelihoods.Probit()
+    kern = reggie.kernels.SE(1, 1)
+    mean = reggie.functions.Zero()
+    U = np.random.rand(50, 1)
+
+    # make sure the Gaussian-type inference methods raise an exception on
+    # non-Gaussian likelihoods
+    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'exact')
+    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'fitc', U)
+
 
 class TestGP(ModelTest):
     def __init__(self):
