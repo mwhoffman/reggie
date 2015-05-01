@@ -121,7 +121,7 @@ class GP(Model):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
+            f = self._post.like.sample(f.ravel(), rng).reshape(f.shape)
         if size is None:
             f = f.ravel()
         return f
