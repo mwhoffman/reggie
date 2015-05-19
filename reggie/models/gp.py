@@ -92,7 +92,7 @@ class GP(Model):
 
         # register hyperparameters
         super(GP, self).__init__()
-        self._post = self._pregister(None, post)
+        self._post = self._register_obj(None, post)
         self._update()
 
     def __info__(self):

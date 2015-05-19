@@ -46,7 +46,8 @@ def _deepcopy(obj, memo):
 
 class Parameter(object):
     """
-    Representation of a single parameter array.
+    Representation of an array of parameters. Objects of this type are used
+    internally but shouldn't be exposed to the user.
     """
     def __init__(self, value, domain, prior=None, block=0):
         self.value = value
@@ -421,7 +422,7 @@ class Parameterized(object):
         # return the array
         return param
 
-    def _pregister(self, name, param, klass=None):
+    def _register_obj(self, name, param, klass=None):
         if klass is not None and not isinstance(param, klass):
             raise ValueError("parameter '{:s}' must be of type {:s}"
                              .format(name, klass.__name__))

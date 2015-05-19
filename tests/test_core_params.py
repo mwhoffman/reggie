@@ -27,8 +27,8 @@ class Child(Parameterized):
 class Parent(Parameterized):
     def __init__(self, a, b):
         super(Parent, self).__init__()
-        self.a = self._pregister('a', a, Child)
-        self.b = self._pregister('b', b, Child)
+        self.a = self._register_obj('a', a, Child)
+        self.b = self._register_obj('b', b, Child)
 
 
 class Empty(Parameterized):
@@ -46,7 +46,7 @@ class Clashing2(Parameterized):
     def __init__(self):
         super(Clashing2, self).__init__()
         self._register('a', 1)
-        self._pregister(None, Child(1, 1))
+        self._register_obj(None, Child(1, 1))
 
 
 class NonArray(Parameterized):
