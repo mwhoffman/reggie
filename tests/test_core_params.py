@@ -109,13 +109,17 @@ class TestParameters(object):
         self.params._register('bar', Parameter(np.array(0.), REAL))
 
     def test_deepcopy(self):
-        params = copy.deepcopy(self.params)
-        for param1, param2 in zip(self.params._Parameters__params.values(),
-                                  params._Parameters__params.values()):
-            nt.assert_equal(param2.value, param1.value)
-            assert isinstance(param1.value, np.ndarray)
-            assert isinstance(param2.value, np.ndarray)
-            assert id(param2.value) != id(param1.value)
+        params1 = self.params
+        params2 = copy.deepcopy(params1)
+
+        # both parameters' objects should refer to the same dummy object
+        assert id(params1._Parameters__obj) == id(params2._Parameters__obj)
+
+        for p1, p2 in zip(params1._Parameters__params.values(),
+                          params2._Parameters__params.values()):
+            nt.assert_equal(p2.value, p1.value)
+            assert isinstance(p2.value, np.ndarray)
+            assert id(p2.value) != id(p1.value)
 
     def test_getitem(self):
         nt.assert_raises(ValueError, self.params.__getitem__, ('foo', 'foo'))
@@ -243,12 +247,15 @@ class TestParameterized(object):
     def test_deepcopy(self):
         obj1 = self.obj
         obj2 = copy.deepcopy(self.obj)
-        for param1, param2 in zip(obj1.params._Parameters__params.values(),
-                                  obj2.params._Parameters__params.values()):
-            nt.assert_equal(param2.value, param1.value)
-            assert isinstance(param1.value, np.ndarray)
-            assert isinstance(param2.value, np.ndarray)
-            assert id(param2.value) != id(param1.value)
+
+        # make sure that the new parameters object refers to this object
+        assert id(obj2.params._Parameters__obj) == id(obj2)
+
+        for p1, p2 in zip(obj1.params._Parameters__params.values(),
+                          obj2.params._Parameters__params.values()):
+            nt.assert_equal(p2.value, p1.value)
+            assert isinstance(p2.value, np.ndarray)
+            assert id(p2.value) != id(p1.value)
 
     def test_copy(self):
         obj1 = self.obj.copy()

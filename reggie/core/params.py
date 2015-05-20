@@ -31,20 +31,6 @@ def _outbounds(bounds, theta):
     return np.any(theta < bounds[:, 0]) or np.any(theta > bounds[:, 1])
 
 
-def _deepcopy(obj, memo):
-    """
-    Method equivalent to `copy.deepcopy` except that it ignored the
-    implementation of `obj.__deepcopy__`. This allows for an object to
-    implement deepcopy, populate its memo dictionary, and then call this
-    version of deepcopy.
-    """
-    ret = type(obj).__new__(type(obj))
-    memo[id(obj)] = ret
-    for key, val in obj.__dict__.items():
-        setattr(ret, key, copy.deepcopy(val, memo))
-    return ret
-
-
 class Parameter(object):
     """
     Representation of an array of parameters.
@@ -71,10 +57,17 @@ class Parameter(object):
         self.set_value(self.value.ravel())
 
     def __deepcopy__(self, memo):
-        # this gets around a bug where copy.deepcopy(array) does not return an
-        # array when called on a 0-dimensional object.
+        # construct the object and save it into the memo dictionary and copy
+        # the value as well. this last bit is in order to get around a bug
+        # where a 0-dimensional array is not deep-copied as an array.
+        memo[id(self)] = obj = type(self).__new__(type(self))
         memo[id(self.value)] = self.value.copy()
-        return _deepcopy(self, memo)
+
+        # copy the rest of the objects in this instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+
+        return obj
 
     @property
     def gradfactor(self):
@@ -87,6 +80,9 @@ class Parameter(object):
 
     @property
     def size(self):
+        """
+        Return the size of the parameter array.
+        """
         return self.value.size
 
     def get_value(self, transform=False):
@@ -176,13 +172,27 @@ class Parameters(object):
         self.__params = OrderedDict([] if (params is None) else params)
 
     def __deepcopy__(self, memo):
+        # construct the object and save it into the memo dictionary
+        memo[id(self)] = obj = type(self).__new__(type(self))
+
+        # this is just a reference to the Parameterized object that we form the
+        # parameters of. if the Parameterized object is being copied then this
+        # should have already been set. otherwise make sure that we keep the
+        # reference but don't make a copy.
+        memo.setdefault(id(self.__obj), self.__obj)
+
         # make sure to copy each Parameter object first. This is because of the
         # 0-dimensional array bug (see above) and since some of our parameter
         # values may be cached elsewhere we want to make sure that the bugfix
         # code is called before an attempt is made to copy the caches.
         for param in self.__params.values():
             copy.deepcopy(param, memo)
-        return _deepcopy(self, memo)
+
+        # copy the rest of the objects in this instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+
+        return obj
 
     def __getitem__(self, keys):
         params = OrderedDict()
@@ -399,11 +409,19 @@ class Parameterized(object):
         return typename + '(' + sep.join(parts) + ')'
 
     def __deepcopy__(self, memo):
-        # populate the memo with our param values so that these get copied
-        # first. this is in order to work around the 0-dimensional array bug
-        # noted in Parameter.
+        # create a new instance of the object and save it in the memo
+        # dictionary as well. this must be done first so that when we copy the
+        # Parameters object it refers to the correct object instance.
+        obj = memo[id(self)] = type(self).__new__(type(self))
+
+        # make sure to copy the parameters first. these are stored in the memo
+        # dictionary so we don't need to explicitly save them
         copy.deepcopy(self.params, memo)
-        return _deepcopy(self, memo)
+
+        # copy the rest of the objects in this Parameterized instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+        return obj
 
     def copy(self, theta=None, transform=False):
         """

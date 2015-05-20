@@ -2,6 +2,8 @@
 branch = True
 omit = 
     reggie/demos/*
+    tests/*
+    setup.py
 
 [report]
 exclude_lines =
