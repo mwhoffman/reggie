@@ -29,7 +29,7 @@ if __name__ == '__main__':
     gp.optimize()
 
     # sample hyperparameters
-    mcmc = rg.MetaMCMC(gp, n=100, rng=None)
+    mcmc = rg.MetaMCMC(gp, n=1000, rng=None)
 
     # evaluate the posterior at some test points
     x = np.linspace(X.min(), X.max(), 500)

@@ -40,7 +40,7 @@ class Parameter(object):
     identifier, a default transformation, and bounds.
 
     Objects of this type should be used internally but should not be exposed
-    outside of this module. See the `Parameters` and `Paramaterized` objects
+    outside of this module. See the `Parameters` and `Parameterized` objects
     for the externally facing code.
     """
     def __init__(self, value, domain, prior=None, block=0):
