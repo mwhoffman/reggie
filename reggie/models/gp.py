@@ -21,78 +21,21 @@ from . import gpinference
 __all__ = ['GP', 'make_gp']
 
 
-class FourierSample(object):
-    """
-    Encapsulation of a continuous function sampled from a Gaussian process
-    where this infinitely-parameterized object is approximated using a weighted
-    sum of finitely many Fourier samples.
-    """
-    def __init__(self, gp, n, rng=None):
-        rng = random.rstate(rng)
-
-        # randomize the feature
-        W, a = gp._post.kern.sample_spectrum(n, rng)
-
-        self._W = W
-        self._b = rng.rand(n) * 2 * np.pi
-        self._a = np.sqrt(2*a/n)
-        self._mean = gp._post.mean.copy()
-        self._theta = None
-
-        if gp.ndata > 0:
-            X, Y = gp.data
-            Z = np.dot(X, self._W.T) + self._b
-            Phi = np.cos(Z) * self._a
-
-            # get the components for regression
-            A = np.dot(Phi.T, Phi)
-            A = la.add_diagonal(A, gp._post.like.get_variance())
-
-            L = la.cholesky(A)
-            r = Y - self._mean.get_function(X)
-            p = np.sqrt(gp._post.like.get_variance()) * rng.randn(n)
-
-            self._theta = la.solve_cholesky(L, np.dot(Phi.T, r))
-            self._theta += la.solve_triangular(L, p, True)
-
-        else:
-            self._theta = rng.randn(n)
-
-    def __call__(self, x, grad=False):
-        if grad:
-            F, G = self.get(x, True)
-            return F[0], G[0]
-        else:
-            return self.get(x)[0]
-
-    def get(self, X, grad=False):
-        X = np.array(X, ndmin=2, copy=False)
-        Z = np.dot(X, self._W.T) + self._b
-
-        F = self._mean.get_function(X)
-        F += np.dot(self._a * np.cos(Z), self._theta)
-
-        if not grad:
-            return F
-
-        d = (-self._a * np.sin(Z))[:, :, None] * self._W[None]
-        G = np.einsum('ijk,j', d, self._theta)
-
-        return F, G
-
-
 class GP(Model):
     """
     Implementation of GP inference.
     """
     def __init__(self, like, kern, mean, inference, *args, **kwargs):
-        # look up the inference method and initialize the posterior
-        inference = gpinference.INFERENCE[inference]
-        post = inference(like, kern, mean, *args, **kwargs)
-
-        # register hyperparameters
+        # initialize
         super(GP, self).__init__()
+
+        # create the posterior object
+        args = (like, kern, mean) + args
+        post = gpinference.INFERENCE[inference](*args, **kwargs)
+
+        # store the posterior object and update the parameters
         self._post = self._register_obj(None, post)
+        self._fmax = None
         self._update()
 
     def __info__(self):
@@ -101,14 +44,12 @@ class GP(Model):
         return info
 
     def _update(self):
-        self._fmin = None
-        self._fmax = None
         if self.ndata == 0:
             self._post.init()
+            self._fmax = None
         else:
             self._post.update(self._X, self._Y)
             mu, _ = self.predict(self._X)
-            self._fmin = mu.min()
             self._fmax = mu.max()
 
     def _predict(self, X, joint=False, grad=False):
@@ -178,6 +119,24 @@ class GP(Model):
         else:
             return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
+    def sample(self, X, size=None, latent=True, rng=None):
+        mu, Sigma = self._predict(X, joint=True)
+        rng = random.rstate(rng)
+
+        L = la.cholesky(la.add_diagonal(Sigma, 1e-10))
+        m = 1 if (size is None) else size
+        n = len(X)
+        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
+
+        if latent is False:
+            f = self._post.like.sample(f.ravel(), rng).reshape(f.shape)
+        if size is None:
+            f = f.ravel()
+        return f
+
+    def predict(self, X, grad=False):
+        return self._predict(X, grad=grad)
+
     def get_improvement(self, X, xi=0, grad=False, pi=False):
         """
         Return the level of improvement (of at least xi) for each point in X
@@ -214,27 +173,6 @@ class GP(Model):
             return fz, dz
 
         return fz
-
-    def sample_f(self, n, rng=None):
-        return FourierSample(self, n, rng)
-
-    def sample(self, X, size=None, latent=True, rng=None):
-        mu, Sigma = self._predict(X, joint=True)
-        rng = random.rstate(rng)
-
-        L = la.cholesky(la.add_diagonal(Sigma, 1e-10))
-        m = 1 if (size is None) else size
-        n = len(X)
-        f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
-
-        if latent is False:
-            f = self._post.like.sample(f.ravel(), rng).reshape(f.shape)
-        if size is None:
-            f = f.ravel()
-        return f
-
-    def predict(self, X, grad=False):
-        return self._predict(X, grad=grad)
 
 
 def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',

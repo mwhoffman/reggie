@@ -19,8 +19,7 @@ class MetaMCMC(object):
         self._n = n
         self._burn = burn
         self._rng = rstate(rng)
-        self._models = [model.copy()]
-        self._resample(True)
+        self._models = self._sample(model.copy(), burn=True)
 
     @property
     def ndata(self):
@@ -30,24 +29,27 @@ class MetaMCMC(object):
     def data(self):
         return self._models[-1].data
 
-    def _resample(self, burn=False):
-        model = self._models.pop()
+    @property
+    def samples(self):
+        return np.array(list(m.params.get_value() for m in self._models))
+
+    def _sample(self, model, burn=False):
+        """
+        Resample the hyperparameters with burnin if requested.
+        """
         if burn:
-            sample(model, self._burn, False, self._rng)
-        self._models = sample(model, self._n, False, self._rng)
+            model = sample(model, self._burn, False, self._rng)[-1]
+        return sample(model, self._n, False, self._rng)
 
     def add_data(self, X, Y):
         # add the data
         nprev = self.ndata
         model = self._models.pop()
         model.add_data(X, Y)
-        self._models = [model]
-        self._resample(model.ndata > 2*nprev)
+        self._models = self._sample(model, burn=(model.ndata > 2*nprev))
 
-    def predict(self, X, grad=False, predictive=False):
-        parts = map(np.array, zip(*[_.predict(X, grad, predictive)
-                                    for _ in self._models]))
-
+    def predict(self, X, grad=False):
+        parts = map(np.array, zip(*[_.predict(X, grad) for _ in self._models]))
         mu_, s2_ = parts[:2]
         mu = np.mean(mu_, axis=0)
         s2 = np.mean(s2_ + (mu_ - mu)**2, axis=0)
@@ -64,9 +66,15 @@ class MetaMCMC(object):
 
         return mu, s2, dmu, ds2
 
-    def get_samples(self):
-        return np.array([m.params.get_value() for m in self._models])
+    def sample(self, X, size=None, latent=True, rng=None):
+        rng = rstate(rng)
+        model = self._models[rng.randint(self._n)]
+        return model.sample(X, size, latent, rng)
 
-    @property
-    def names(self):
-        return self._models[0].names
+    def get_improvement(self, X, xi=0, grad=False, pi=False):
+        args = (X, xi, grad, pi)
+        parts = [m.get_improvement(*args) for m in self._models]
+        if grad:
+            return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
+        else:
+            return np.mean(parts, axis=0)
