@@ -7,9 +7,8 @@ A Bayesian framework for building regression models.
 from .models import *
 from .learning import *
 
-from . import kernels
-from . import functions
 from . import models
+from . import learning
 
 __all__ = []
 __all__ += models.__all__

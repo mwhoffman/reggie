@@ -9,17 +9,36 @@ from __future__ import print_function
 import numpy as np
 
 from mwhutils.random import rstate
-from .sampling import sample
 
-__all__ = ['MetaMCMC']
+from ._core import Model
+from ..learning import sample
+
+__all__ = ['MCMC']
 
 
-class MetaMCMC(object):
+class MCMC(Model):
+    """
+    Model which implements MCMC to produce a posterior over parameterized
+    models.
+    """
     def __init__(self, model, n=100, burn=100, rng=None):
         self._n = n
         self._burn = burn
         self._rng = rstate(rng)
         self._models = self._sample(model.copy(), burn=True)
+
+    @property
+    def samples(self):
+        """
+        An array of the parameter values produced by MCMC."""
+        return np.array(list(m.params.get_value() for m in self._models))
+
+    def _sample(self, model, burn=False):
+        """
+        Resample the hyperparameters with burnin if requested."""
+        if burn:
+            model = sample(model, self._burn, False, self._rng)[-1]
+        return sample(model, self._n, False, self._rng)
 
     @property
     def ndata(self):
@@ -29,17 +48,10 @@ class MetaMCMC(object):
     def data(self):
         return self._models[-1].data
 
-    @property
-    def samples(self):
-        return np.array(list(m.params.get_value() for m in self._models))
-
-    def _sample(self, model, burn=False):
-        """
-        Resample the hyperparameters with burnin if requested.
-        """
-        if burn:
-            model = sample(model, self._burn, False, self._rng)[-1]
-        return sample(model, self._n, False, self._rng)
+    def reset(self):
+        model = self._models.pop()
+        model.reset()
+        self._models = self._sample(model, burn=True)
 
     def add_data(self, X, Y):
         # add the data
@@ -70,6 +82,9 @@ class MetaMCMC(object):
         rng = rstate(rng)
         model = self._models[rng.randint(self._n)]
         return model.sample(X, size, latent, rng)
+
+    def get_loglike(self):
+        return np.mean([m.get_loglike() for m in self._models])
 
     def get_improvement(self, X, xi=0, grad=False, pi=False):
         args = (X, xi, grad, pi)

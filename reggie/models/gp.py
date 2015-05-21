@@ -15,13 +15,13 @@ from .. import likelihoods
 from .. import kernels
 from .. import functions
 
-from ._core import Model
+from ._core import ParameterizedModel
 from . import gpinference
 
 __all__ = ['GP', 'make_gp']
 
 
-class GP(Model):
+class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
@@ -138,12 +138,6 @@ class GP(Model):
         return self._predict(X, grad=grad)
 
     def get_improvement(self, X, xi=0, grad=False, pi=False):
-        """
-        Return the level of improvement (of at least xi) for each point in X
-        over the current incumbent. If grad is True return the gradient as
-        well. If pi is True return the probability of improvement rather than
-        the expected improvement.
-        """
         # grab the posterior and possibly its derivatives
         if grad:
             mu, s2, dmu, ds2 = self.predict(X, grad=True)

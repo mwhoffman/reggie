@@ -373,6 +373,7 @@ class Parameterized(object):
     Representation of a parameterized object.
     """
     def __init__(self):
+        super(Parameterized, self).__init__()
         self.params = Parameters(self)
 
     def __info__(self):
