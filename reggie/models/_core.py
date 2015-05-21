@@ -19,12 +19,10 @@ class Model(Parameterized):
     """
     Base class for parameterized posterior models.
     """
-    def __new__(cls, *args, **kwargs):
-        self = super(Model, cls).__new__(cls, *args, **kwargs)
-        # pylint: disable=W0212
+    def __init__(self):
+        super(Model, self).__init__()
         self._X = None
         self._Y = None
-        return self
 
     def __deepcopy__(self, memo):
         # don't make a copy of the data.
