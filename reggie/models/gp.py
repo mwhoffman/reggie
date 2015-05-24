@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import scipy.stats as ss
 import mwhutils.linalg as la
 import mwhutils.random as random
 
@@ -14,24 +15,28 @@ from .. import likelihoods
 from .. import kernels
 from .. import functions
 
-from ._core import Model
+from ._core import ParameterizedModel
 from . import gpinference
 
 __all__ = ['GP', 'make_gp']
 
 
-class GP(Model):
+class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
     def __init__(self, like, kern, mean, inference, *args, **kwargs):
-        # look up the inference method and initialize the posterior
-        inference = gpinference.INFERENCE[inference]
-        post = inference(like, kern, mean, *args, **kwargs)
-
-        # register hyperparameters
+        # initialize
         super(GP, self).__init__()
-        self._post = self._pregister(None, post)
+
+        # create the posterior object
+        args = (like, kern, mean) + args
+        post = gpinference.INFERENCE[inference](*args, **kwargs)
+
+        # store the posterior object and update the parameters
+        self._post = self._register_obj(None, post)
+        self._fmax = None
+        self._update()
 
     def __info__(self):
         info = self._post.__info__()
@@ -41,8 +46,11 @@ class GP(Model):
     def _update(self):
         if self.ndata == 0:
             self._post.init()
+            self._fmax = None
         else:
             self._post.update(self._X, self._Y)
+            mu, _ = self.predict(self._X)
+            self._fmax = mu.max()
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
@@ -127,10 +135,38 @@ class GP(Model):
         return f
 
     def predict(self, X, grad=False):
+        return self._predict(X, grad=grad)
+
+    def get_improvement(self, X, xi=0, grad=False, pi=False):
+        # grab the posterior and possibly its derivatives
         if grad:
-            return self._predict(X, grad=True)
+            mu, s2, dmu, ds2 = self.predict(X, grad=True)
         else:
-            return self._predict(X)
+            mu, s2 = self.predict(X, grad=False)
+
+        # normalize the normal variate and compare against our target
+        a = mu - (self._fmax + xi)
+        s = np.sqrt(s2)
+        z = a / s
+
+        # get the pdf/cdf of the difference
+        pdf = ss.norm.pdf(z)
+        cdf = ss.norm.cdf(z)
+
+        if pi:
+            fz = cdf
+        else:
+            fz = a * cdf + s * pdf
+
+        if grad:
+            if pi:
+                dz = dmu / s[:, None] - 0.5 * ds2 * z[:, None] / s2[:, None]
+            else:
+                dz = 0.5 * ds2 / s2[:, None]
+                dz *= (fz - s * z * cdf)[:, None] + cdf[:, None] * dmu
+            return fz, dz
+
+        return fz
 
 
 def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',

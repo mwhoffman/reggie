@@ -2,12 +2,7 @@
 Objects which implement learning.
 """
 
-# pylint: disable=wildcard-import
+from .optimization import optimize
+from .sampling import sample
 
-from .meta import *
-
-from . import meta
-
-__all__ = []
-__all__ += meta.__all__
-
+__all__ = ['optimize', 'sample']

@@ -13,7 +13,8 @@ import numpy as np
 import copy
 import tabulate
 import warnings
-import collections
+
+from collections import OrderedDict
 
 from .priors import PRIORS
 from .domains import REAL
@@ -30,23 +31,17 @@ def _outbounds(bounds, theta):
     return np.any(theta < bounds[:, 0]) or np.any(theta > bounds[:, 1])
 
 
-def _deepcopy(obj, memo):
-    """
-    Method equivalent to `copy.deepcopy` except that it ignored the
-    implementation of `obj.__deepcopy__`. This allows for an object to
-    implement deepcopy, populate its memo dictionary, and then call this
-    version of deepcopy.
-    """
-    ret = type(obj).__new__(type(obj))
-    memo[id(obj)] = ret
-    for key, val in obj.__dict__.items():
-        setattr(ret, key, copy.deepcopy(val, memo))
-    return ret
-
-
 class Parameter(object):
     """
-    Representation of a single parameter array.
+    Representation of an array of parameters.
+
+    A `Parameter` represents an array of continuous-valued parameters. Each
+    parameter should be associated with a prior (possibly None), a block
+    identifier, a default transformation, and bounds.
+
+    Objects of this type should be used internally but should not be exposed
+    outside of this module. See the `Parameters` and `Parameterized` objects
+    for the externally facing code.
     """
     def __init__(self, value, domain, prior=None, block=0):
         self.value = value
@@ -56,28 +51,44 @@ class Parameter(object):
         self.transform = TRANSFORMS[domain]
         self.bounds = BOUNDS[domain]
 
-        # note this will raise an error if we're out of bounds.
+        # this should do nothing if the parameter is inside its bounds,
+        # otherwise it will raise a warning and clip the value to lie inside
+        # the bounding box.
         self.set_value(self.value.ravel())
 
     def __deepcopy__(self, memo):
-        # this gets around a bug where copy.deepcopy(array) does not return an
-        # array when called on a 0-dimensional object.
+        # construct the object and save it into the memo dictionary and copy
+        # the value as well. this last bit is in order to get around a bug
+        # where a 0-dimensional array is not deep-copied as an array.
+        memo[id(self)] = obj = type(self).__new__(type(self))
         memo[id(self.value)] = self.value.copy()
-        return _deepcopy(self, memo)
+
+        # copy the rest of the objects in this instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+
+        return obj
 
     @property
     def gradfactor(self):
         """
-        Return a gradient factor which can be used to transform a gradient in
-        the original space into a gradient in the transformed space, via the
-        chain rule.
+        Return a vector of the same size as the parameters which can be used to
+        transform a gradient in the original space into a gradient in the
+        transformed space (via the chain rule).
         """
         return self.transform.get_gradfactor(self.value).ravel()
 
+    @property
+    def size(self):
+        """
+        Return the size of the parameter array.
+        """
+        return self.value.size
+
     def get_value(self, transform=False):
         """
-        Return the parameters. If `transform` is True return values in the
-        transformed space.
+        Return the parameters as a vector. If `transform` is True, then return
+        the parameter vector in the transformed space.
         """
         if transform:
             return self.transform.get_transform(self.value).ravel()
@@ -86,8 +97,10 @@ class Parameter(object):
 
     def set_value(self, theta, transform=False):
         """
-        Set the parameters to values given by `theta`. If `transform` is true
-        then theta lies in the transformed space.
+        Set the parameters to values given by the vector `theta`. If
+        `transform` is true, then `theta` should lie in the transformed space
+        and hence the parameters will be set to the inverse transform of
+        `theta`.
         """
         # transform the parameters if necessary and ensure that they lie in the
         # correct domain (here we're using the transform as a domain
@@ -103,7 +116,8 @@ class Parameter(object):
     def set_prior(self, prior, *args, **kwargs):
         """
         Set the prior of the parameter object. This should be given as a string
-        identifier and any (fixed!) hyperparameters.
+        identifier and arguments corresponding to fixed hyperparameters of the
+        prior.
         """
         if prior is None:
             self.prior = prior
@@ -138,9 +152,9 @@ class Parameter(object):
 
     def get_logprior(self, grad=False):
         """
-        Return the log probability of parameter assignments for this parameter
-        vector. Also if requested return the gradient of this probability with
-        respect to the parameter values.
+        Return the log probability of parameter assignments under the prior. If
+        requested, also return the gradient of this probability with respect to
+        the parameter values.
         """
         if self.prior is None:
             return (0.0, np.zeros_like(self.value.ravel())) if grad else 0.0
@@ -150,29 +164,38 @@ class Parameter(object):
 
 class Parameters(object):
     """
-    Representation of a set of parameters bound to a Parameterized object.
+    Representation of a set of parameters as well as a callback object. If any
+    of the parameters are changed then obj._update() will be called.
     """
     def __init__(self, obj, params=None):
-        params = [] if (params is None) else params
         self.__obj = obj
-        self.__params = collections.OrderedDict(params)
+        self.__params = OrderedDict([] if (params is None) else params)
 
-    def _register(self, name, param):
-        if isinstance(param, Parameter):
-            if name in self.__params:
-                raise ValueError("parameter '{:s}' has already been registered"
-                                 .format(name))
-            self.__params[name] = param
-        elif isinstance(param, Parameters):
-            for n, p in param.__params.items():
-                if name is not None:
-                    n = name + '.' + n
-                self._register(n, p)
-        else:
-            raise ValueError('unknown type passed to _register')
+    def __deepcopy__(self, memo):
+        # construct the object and save it into the memo dictionary
+        memo[id(self)] = obj = type(self).__new__(type(self))
+
+        # this is just a reference to the Parameterized object that we form the
+        # parameters of. if the Parameterized object is being copied then this
+        # should have already been set. otherwise make sure that we keep the
+        # reference but don't make a copy.
+        memo.setdefault(id(self.__obj), self.__obj)
+
+        # make sure to copy each Parameter object first. This is because of the
+        # 0-dimensional array bug (see above) and since some of our parameter
+        # values may be cached elsewhere we want to make sure that the bugfix
+        # code is called before an attempt is made to copy the caches.
+        for param in self.__params.values():
+            copy.deepcopy(param, memo)
+
+        # copy the rest of the objects in this instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+
+        return obj
 
     def __getitem__(self, keys):
-        params = collections.OrderedDict()
+        params = OrderedDict()
         keys = keys if isinstance(keys, tuple) else (keys,)
         for key in keys:
             if key in params:
@@ -182,13 +205,27 @@ class Parameters(object):
             params[key] = self.__params[key]
         return Parameters(self.__obj, params)
 
-    def __deepcopy__(self, memo):
-        # populate the memo with our param values so that these get copied
-        # first. this is in order to work around the 0-dimensional array bug
-        # noted in Parameter.
-        for param in self.__params.values():
-            copy.deepcopy(param, memo)
-        return _deepcopy(self, memo)
+    def _register(self, name, param):
+        """
+        Register the named parameter. If the `param` object is a `Parameter`
+        instance then it will be inserted into the dictionary with a key given
+        by `name`. If the object is a `Parameters` instance then each parameter
+        will be inserted with the `key` if name is None or `key + '.' + name`
+        otherwise.
+        """
+        if isinstance(param, Parameter):
+            if name in self.__params:
+                raise ValueError("parameter '{:s}' has already been registered"
+                                 .format(name))
+            self.__params[name] = param
+        elif isinstance(param, Parameters):
+            # pylint: disable=protected-access
+            for n, p in param.__params.items():
+                if name is not None:
+                    n = name + '.' + n
+                self._register(n, p)
+        else:
+            raise ValueError('unknown type passed to _register')
 
     @property
     def size(self):
@@ -210,20 +247,6 @@ class Parameters(object):
                              for param in self.__params.values())
 
     @property
-    def blocks(self):
-        """
-        Return a list whose ith element contains indices for the parameters
-        which make up the ith block.
-        """
-        blocks = dict()
-        a = 0
-        for param in self.__params.values():
-            b = a + param.value.size
-            blocks.setdefault(param.block, []).extend(range(a, b))
-            a = b
-        return blocks.values()
-
-    @property
     def block(self):
         """Get the block assignment of the parameter set."""
         return [param.block for param in self.__params.values()]
@@ -237,6 +260,20 @@ class Parameters(object):
             raise ValueError('invalid block assignment')
         for block, param in zip(value, self.__params.values()):
             param.block = block
+
+    @property
+    def blocks(self):
+        """
+        Return a list whose ith element contains indices for the parameters
+        which make up the ith block.
+        """
+        blocks = dict()
+        a = 0
+        for param in self.__params.values():
+            b = a + param.value.size
+            blocks.setdefault(param.block, []).extend(range(a, b))
+            a = b
+        return blocks.values()
 
     @property
     def names(self):
@@ -271,14 +308,6 @@ class Parameters(object):
         self.__params.values()[0].set_prior(prior, *args, **kwargs)
         self.__obj._update()
 
-    def get_value(self, transform=False):
-        """Get the value of the parameters."""
-        if self.size == 0:
-            return np.array([])
-        else:
-            return np.hstack(param.get_value(transform)
-                             for param in self.__params.values())
-
     def set_value(self, theta, transform=False):
         """Set the value of the parameters."""
         theta = np.array(theta, dtype=float, copy=False, ndmin=1)
@@ -290,6 +319,14 @@ class Parameters(object):
             param.set_value(theta[a:b], transform)
             a = b
         self.__obj._update()
+
+    def get_value(self, transform=False):
+        """Get the value of the parameters."""
+        if self.size == 0:
+            return np.array([])
+        else:
+            return np.hstack(param.get_value(transform)
+                             for param in self.__params.values())
 
     def get_bounds(self, transform=False):
         """
@@ -319,7 +356,7 @@ class Parameters(object):
                        for param in self.__params.values())
 
         elif self.size == 0:
-            return 0, np.array([])
+            return 0.0, np.array([])
 
         else:
             logp = 0.0
@@ -336,6 +373,7 @@ class Parameterized(object):
     Representation of a parameterized object.
     """
     def __init__(self):
+        super(Parameterized, self).__init__()
         self.params = Parameters(self)
 
     def __info__(self):
@@ -372,11 +410,19 @@ class Parameterized(object):
         return typename + '(' + sep.join(parts) + ')'
 
     def __deepcopy__(self, memo):
-        # populate the memo with our param values so that these get copied
-        # first. this is in order to work around the 0-dimensional array bug
-        # noted in Parameter.
+        # create a new instance of the object and save it in the memo
+        # dictionary as well. this must be done first so that when we copy the
+        # Parameters object it refers to the correct object instance.
+        obj = memo[id(self)] = type(self).__new__(type(self))
+
+        # make sure to copy the parameters first. these are stored in the memo
+        # dictionary so we don't need to explicitly save them
         copy.deepcopy(self.params, memo)
-        return _deepcopy(self, memo)
+
+        # copy the rest of the objects in this Parameterized instance
+        for key, val in self.__dict__.items():
+            setattr(obj, key, copy.deepcopy(val, memo))
+        return obj
 
     def copy(self, theta=None, transform=False):
         """
@@ -396,11 +442,16 @@ class Parameterized(object):
         pass
 
     def _register(self, name, param, domain=REAL, shape=()):
-        try:
-            # create the parameter vector
-            ndmin = len(shape)
-            param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
+        """
+        Register a real-valued set of parameters.
+        """
+        # the shape parameter should either be an integer or an iterable object
+        # of integers or characters
+        shape = (shape,) if isinstance(shape, int) else shape
+        ndmin = len(shape)
 
+        try:
+            param = np.array(param, dtype=float, copy=True, ndmin=ndmin)
         except (TypeError, ValueError):
             raise ValueError("parameter '{:s}' not array-like".format(name))
 
@@ -421,10 +472,18 @@ class Parameterized(object):
         # return the array
         return param
 
-    def _pregister(self, name, param, klass=None):
+    def _register_obj(self, name, param, klass=None):
+        """
+        Register a parameterized object.
+        """
         if klass is not None and not isinstance(param, klass):
-            raise ValueError("parameter '{:s}' must be of type {:s}"
-                             .format(name, klass.__name__))
+            msg = "'{:s}' must be of type {:s}"
+            raise ValueError(msg.format(name, klass.__name__))
+
+        if not isinstance(param, Parameterized):
+            msg = "'{:s}' must be of type Parameterized"
+            raise ValueError(msg.format(name))
+
         param = param.copy()
         self.params._register(name, param.params)
         return param

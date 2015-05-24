@@ -19,15 +19,23 @@ def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
     instance and returns a new model instance.
     """
     rng = rstate(rng)
-    theta0 = model.params.get_value()
+
+    # the initial parameter values
+    theta0 = model.params.get_value(transform=True)
+
+    # posterior including the log-determinant of the transform's jacobian
     logp0 = model.params.get_logprior() + model.get_loglike()
+    logp0 += np.sum(np.log(model.params.gradfactor))
 
     def get_logp(theta):
         try:
-            # update the new model (ie computing its sufficient statistics) and
-            # compute the posterior probability and the model itself.
-            model_ = model.copy(theta)
+            # get the model at the new parameters
+            model_ = model.copy(theta, transform=True)
+
+            # compute the posterior probability and again we need to include
+            # the log-determinant of the transform's jacobian
             logp = model_.params.get_logprior() + model_.get_loglike()
+            logp += np.sum(np.log(model_.params.gradfactor))
 
         except ValueError:
             # we tried to set parameters that don't lie in the support of

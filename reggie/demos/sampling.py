@@ -25,12 +25,11 @@ if __name__ == '__main__':
     gp.params.block = range(gp.params.size)
 
     # add data and optimize
-    gp.add_data(data['X'], data['y'])
+    gp.add_data(X, Y)
     gp.optimize()
 
     # sample hyperparameters
-    mcmc = rg.MetaMCMC(gp, n=1000, rng=None)
-    samples = mcmc.get_samples()
+    mcmc = rg.MCMC(gp, n=1000, rng=None)
 
     # evaluate the posterior at some test points
     x = np.linspace(X.min(), X.max(), 500)
@@ -46,7 +45,7 @@ if __name__ == '__main__':
     fig.draw()
 
     # plot the samples
-    mp.plot_pairs(mcmc.get_samples(), fig=2)
+    mp.plot_pairs(mcmc.samples, fig=2)
 
     # block if we're in non-interactive mode
     mp.show()
