@@ -83,6 +83,11 @@ class MCMC(Model):
         model = self._models[rng.randint(self._n)]
         return model.sample(X, size, latent, rng)
 
+    def sample_f(self, n, rng=None):
+        rng = rstate(rng)
+        model = self._models[rng.randint(self._n)]
+        return model.sample_f(n, rng)
+
     def get_loglike(self):
         return np.mean([m.get_loglike() for m in self._models])
 
