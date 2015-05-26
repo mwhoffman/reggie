@@ -9,6 +9,7 @@ from .learning import *
 
 from . import models
 from . import learning
+from . import functions, kernels, likelihoods
 
 __all__ = []
 __all__ += models.__all__

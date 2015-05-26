@@ -35,7 +35,6 @@ class GP(ParameterizedModel):
 
         # store the posterior object and update the parameters
         self._post = self._register_obj(None, post)
-        self._fmax = None
         self._update()
 
     def __info__(self):
@@ -46,11 +45,8 @@ class GP(ParameterizedModel):
     def _update(self):
         if self.ndata == 0:
             self._post.init()
-            self._fmax = None
         else:
             self._post.update(self._X, self._Y)
-            mu, _ = self.predict(self._X)
-            self._fmax = mu.max()
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
@@ -137,7 +133,7 @@ class GP(ParameterizedModel):
     def predict(self, X, grad=False):
         return self._predict(X, grad=grad)
 
-    def get_improvement(self, X, xi=0, grad=False, pi=False):
+    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
         # grab the posterior and possibly its derivatives
         if grad:
             mu, s2, dmu, ds2 = self.predict(X, grad=True)
@@ -145,7 +141,8 @@ class GP(ParameterizedModel):
             mu, s2 = self.predict(X, grad=False)
 
         # normalize the normal variate and compare against our target
-        a = mu - (self._fmax + xi)
+        f = self.predict(np.array(x, ndmin=2))[0][0]
+        a = mu - (f + xi)
         s = np.sqrt(s2)
         z = a / s
 
