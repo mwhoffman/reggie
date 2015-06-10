@@ -101,4 +101,8 @@ class Matern(RealKernel):
         raise NotImplementedError
 
     def sample_spectrum(self, N, rng=None):
-        raise NotImplementedError
+        rng = random.rstate(rng)
+        g = np.sqrt(rng.gamma(self._d / 2., 2. / self._d, N))
+        W = rng.randn(N, self.ndim) / self._ell / g[:, None]
+        a = float(self._rho)
+        return W, a
