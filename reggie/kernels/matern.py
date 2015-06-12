@@ -58,7 +58,7 @@ class Matern(RealKernel):
             r*(1+r)/3.)
 
     def get_kernel(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
+        X1, X2 = rescale(self._ell / np.sqrt(self._d), X1, X2)
         D = dist(X1, X2, metric='euclidean')
         K = self._rho * np.exp(-D) * self._f(D)
         return K
@@ -67,7 +67,7 @@ class Matern(RealKernel):
         return np.full(len(X1), self._rho)
 
     def get_grad(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
+        X1, X2 = rescale(self._ell / np.sqrt(self._d), X1, X2)
         D = dist(X1, X2, metric='euclidean')
         E = np.exp(-D)
         S = E * self._f(D)
@@ -88,7 +88,7 @@ class Matern(RealKernel):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
-        X1, X2 = rescale(self._ell, X1, X2)
+        X1, X2 = rescale(self._ell / np.sqrt(self._d), X1, X2)
         D1 = diff(X1, X2)
         D = np.sqrt(np.sum(D1**2, axis=-1))
         S = self._rho * np.exp(-D)
