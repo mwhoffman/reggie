@@ -31,7 +31,7 @@ if __name__ == '__main__':
     gp2.optimize()
 
     # create the figure
-    fig = mp.figure(1, 1, 2)
+    fig = mp.figure(1, 2)
     fig.hold()
 
     # get the posterior moments for the first model
@@ -39,17 +39,17 @@ if __name__ == '__main__':
     x = np.linspace(xmin, xmax, n)
     mu, s2 = gp1.predict(x[:, None])
 
-    fig[0].plot_banded(x, mu, 2*np.sqrt(s2))
-    fig[0].scatter(*gp1.data)
+    fig[0].plot(x, mu, 2*np.sqrt(s2))
+    fig[0].scatter(data['X'], data['y'])
     fig[0].xlabel = 'inputs, X'
     fig[0].ylabel = 'outputs, Y'
     fig[0].title = 'Basic GP'
 
     # get the posterior moments for the second model
     mu, s2 = gp2.predict(x[:, None])
-    fig[1].plot_banded(x, mu, 2*np.sqrt(s2))
-    fig[1].scatter(*gp2.data)
-    fig[1].plot(x, f.get(x[:, None]))
+    fig[1].plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
+    fig[1].plot(x, f.get(x[:, None]), label='sample function')
+    fig[1].scatter(gp2.data[0], gp2.data[1], label='observed data')
     fig[1].xlabel = 'inputs, X'
     fig[1].title = 'Binary GP\n(with sampled function)'
 

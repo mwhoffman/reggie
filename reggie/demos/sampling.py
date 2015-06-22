@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import mwhutils.plotting as mp
-
 import reggie as rg
 
 
@@ -36,16 +35,16 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure(1)
+    fig = mp.figure()
     fig.hold()
-    fig.plot_banded(x, mu, 2*np.sqrt(s2))
+    fig.plot(x, mu, 2*np.sqrt(s2))
     fig.scatter(X.ravel(), Y)
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
     fig.draw()
 
     # plot the samples
-    mp.plot_pairs(mcmc.samples, fig=2)
+    mp.plot_pairs(mcmc.samples)
 
     # block if we're in non-interactive mode
     mp.show()

@@ -23,11 +23,11 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure(1)
+    fig = mp.figure()
     fig.hold()
-    fig.plot_banded(x, mu, 2*np.sqrt(s2))
-    fig.scatter(X, Y)
-    fig.scatter(U, np.full_like(U, -1), 'x')
+    fig.plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
+    fig.scatter(X, Y, label='observed data')
+    fig.scatter(U, np.full_like(U, -1), label='inducing points')
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
     fig.title = 'Sparse GP (FITC)'

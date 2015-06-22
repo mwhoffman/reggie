@@ -7,14 +7,14 @@ import reggie as rg
 if __name__ == '__main__':
     kernels = [
         rg.kernels.SE(1, 1),
-        rg.kernels.Matern(1, 1)]
+        rg.kernels.Matern(1, 1, d=5)]
 
     # seed the rng
     rng = random.rstate()
     x = np.linspace(-5, 5, 500)
-    n = 10000
+    n = 1000
 
-    fig = mp.figure(1, cols=len(kernels))
+    fig = mp.figure(len(kernels))
     fig.hold()
 
     # the points we'll test at
@@ -28,8 +28,8 @@ if __name__ == '__main__':
         k2 = np.dot(np.cos(np.dot(x[:, None], W.T) + b), np.cos(b)) * 2 * a / n
 
         # plot it
-        fig[i].plot(x, k1)
-        fig[i].plot(x, k2)
+        fig[i].plot(x, k1, label='true kernel')
+        fig[i].plot(x, k2, label='feature approximation')
         fig[i].title = kernel.__class__.__name__
         fig[i].draw()
 
