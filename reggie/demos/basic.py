@@ -22,10 +22,10 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure(1)
+    fig = mp.figure()
     fig.hold()
-    fig.plot_banded(x, mu, 2*np.sqrt(s2))
-    fig.scatter(X, Y)
+    fig.plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
+    fig.scatter(X, Y, 'observed data')
     fig.xlabel = 'inputs, X'
     fig.ylabel = 'outputs, Y'
     fig.title = 'Basic GP'

@@ -83,11 +83,16 @@ class MCMC(Model):
         model = self._models[rng.randint(self._n)]
         return model.sample(X, size, latent, rng)
 
+    def sample_f(self, n, rng=None):
+        rng = rstate(rng)
+        model = self._models[rng.randint(self._n)]
+        return model.sample_f(n, rng)
+
     def get_loglike(self):
         return np.mean([m.get_loglike() for m in self._models])
 
-    def get_improvement(self, X, xi=0, grad=False, pi=False):
-        args = (X, xi, grad, pi)
+    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
+        args = (X, x, xi, grad, pi)
         parts = [m.get_improvement(*args) for m in self._models]
         if grad:
             return tuple([np.mean(_, axis=0) for _ in zip(*parts)])

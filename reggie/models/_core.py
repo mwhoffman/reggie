@@ -75,15 +75,14 @@ class Model(object):
         Return the log-likelihood of the observed data."""
         raise NotImplementedError
 
-    def get_improvement(self, X, xi=0, grad=False, pi=False):
+    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
         """
-        Return the expected or probability of improvement at each point X.
+        Return the expected or probability of improvement of each X[i] over x.
 
-        The improvement must be of a level of at least xi over the current
-        incumbent. If pi is True this will return the probability of
-        improvement, otherwise returning the expected improvement. Finally, if
-        grad is True return the gradients of this function at each input
-        location.
+        This computes improvement of each point X[i] over x of at least xi. If
+        pi is True this will return the probability of improvement, otherwise
+        returning the expected improvement. Finally, if grad is True return the
+        gradients of this function at each input location.
         """
         raise NotImplementedError
 
