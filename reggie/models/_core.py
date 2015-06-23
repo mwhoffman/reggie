@@ -75,14 +75,23 @@ class Model(object):
         Return the log-likelihood of the observed data."""
         raise NotImplementedError
 
-    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
+    def get_tail(self, X, f, grad=False):
         """
-        Return the expected or probability of improvement of each X[i] over x.
+        Compute the probability that latent function exceeds some target `f`.
 
-        This computes improvement of each point X[i] over x of at least xi. If
-        pi is True this will return the probability of improvement, otherwise
-        returning the expected improvement. Finally, if grad is True return the
-        gradients of this function at each input location.
+        Return a vector containing the probability that the latent function
+        f(x) exceeds the given target `v` for each point `X[i]`. If grad is
+        True return the gradients of this function at each input location.
+        """
+        raise NotImplementedError
+
+    def get_improvement(self, X, f, grad=False):
+        """
+        Compute expected improvement over some target `f`.
+
+        Return a vector containing the expected improvement over a given target
+        `f` for each point `X[i]`. If grad is True return the gradients of this
+        function at each input location.
         """
         raise NotImplementedError
 

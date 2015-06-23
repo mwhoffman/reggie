@@ -91,9 +91,15 @@ class MCMC(Model):
     def get_loglike(self):
         return np.mean([m.get_loglike() for m in self._models])
 
-    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
-        args = (X, x, xi, grad, pi)
-        parts = [m.get_improvement(*args) for m in self._models]
+    def get_tail(self, X, f, grad=False):
+        parts = [m.get_tail(X, f, grad) for m in self._models]
+        if grad:
+            return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
+        else:
+            return np.mean(parts, axis=0)
+
+    def get_improvement(self, X, f, grad=False):
+        parts = [m.get_improvement(X, f, grad) for m in self._models]
         if grad:
             return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
         else:

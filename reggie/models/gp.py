@@ -196,37 +196,44 @@ class GP(ParameterizedModel):
     def predict(self, X, grad=False):
         return self._predict(X, grad=grad)
 
-    def get_improvement(self, X, x, xi=0, grad=False, pi=False):
-        # grab the posterior and possibly its derivatives
-        if grad:
-            mu, s2, dmu, ds2 = self.predict(X, grad=True)
-        else:
-            mu, s2 = self.predict(X, grad=False)
-
-        # normalize the normal variate and compare against our target
-        f = self.predict(np.array(x, ndmin=2))[0][0]
-        a = mu - (f + xi)
+    def get_tail(self, X, f, grad=False):
+        # get the posterior (possibly with gradients) and standardize
+        post = self.predict(X, grad=grad)
+        mu, s2 = post[:2]
+        a = mu - f
         s = np.sqrt(s2)
         z = a / s
 
-        # get the pdf/cdf of the difference
-        pdf = ss.norm.pdf(z)
+        # get the cdf
         cdf = ss.norm.cdf(z)
 
-        if pi:
-            fz = cdf
+        if not grad:
+            return cdf
         else:
-            fz = a * cdf + s * pdf
+            dmu, ds2 = post[2:]
+            dcdf = dmu / s[:, None] - 0.5 * ds2 * z[:, None] / s2[:, None]
+            return cdf, dcdf
 
-        if grad:
-            if pi:
-                dz = dmu / s[:, None] - 0.5 * ds2 * z[:, None] / s2[:, None]
-            else:
-                dz = 0.5 * ds2 / s2[:, None]
-                dz *= (fz - s * z * cdf)[:, None] + cdf[:, None] * dmu
-            return fz, dz
+    def get_improvement(self, X, f, grad=False):
+        # get the posterior (possibly with gradients) and standardize
+        post = self.predict(X, grad=grad)
+        mu, s2 = post[:2]
+        a = mu - f
+        s = np.sqrt(s2)
+        z = a / s
 
-        return fz
+        # get the cdf, pdf, and ei
+        cdf = ss.norm.cdf(z)
+        pdf = ss.norm.pdf(z)
+        ei = a * cdf + s * pdf
+
+        if not grad:
+            return ei
+        else:
+            dmu, ds2 = post[2:]
+            dei = 0.5 * ds2 / s2[:, None]
+            dei *= (ei - s * z * cdf)[:, None] + cdf[:, None] * dmu
+            return ei, dei
 
 
 def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
