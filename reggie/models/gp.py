@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.stats as ss
+
 import mwhutils.linalg as la
 import mwhutils.random as random
 
@@ -31,12 +32,12 @@ class FourierSample(object):
         rng = random.rstate(rng)
 
         # randomize the feature
-        W, a = gp._post.kern.sample_spectrum(n, rng)
+        W, a = gp.kern.sample_spectrum(n, rng)
 
         self._W = W
         self._b = rng.rand(n) * 2 * np.pi
         self._a = np.sqrt(2*a/n)
-        self._mean = gp._post.mean.copy()
+        self._mean = gp.mean.copy()
         self._theta = None
 
         if gp.ndata > 0:
@@ -46,11 +47,11 @@ class FourierSample(object):
 
             # get the components for regression
             A = np.dot(Phi.T, Phi)
-            A = la.add_diagonal(A, gp._post.like.get_variance())
+            A = la.add_diagonal(A, gp.like.get_variance())
 
             L = la.cholesky(A)
             r = Y - self._mean.get_function(X)
-            p = np.sqrt(gp._post.like.get_variance()) * rng.randn(n)
+            p = np.sqrt(gp.like.get_variance()) * rng.randn(n)
 
             self._theta = la.solve_cholesky(L, np.dot(Phi.T, r))
             self._theta += la.solve_triangular(L, p, True)
@@ -85,41 +86,47 @@ class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, inference, *args, **kwargs):
+    def __init__(self, like, kern, mean, infer, U=None):
         # initialize
         super(GP, self).__init__()
 
-        # create the posterior object
-        args = (like, kern, mean) + args
-        post = gpinference.INFERENCE[inference](*args, **kwargs)
+        # store the component objects
+        self.like = self._register_obj('like', like)
+        self.kern = self._register_obj('kern', kern)
+        self.mean = self._register_obj('kern', mean)
 
-        # store the posterior object and update the parameters
-        self._post = self._register_obj(None, post)
-        self._update()
+        self._U = U
+        self._post = None
+        self._infer = infer
 
     def __info__(self):
-        info = self._post.__info__()
-        info.insert(3, ('inference', type(self._post).__name__.lower()))
+        info = [
+            ('like', self.like),
+            ('kern', self.kern),
+            ('mean', self.mean),
+            ('infer', self._infer)]
+        if self._U is not None:
+            info.append(('U', self._U))
         return info
 
     def _update(self):
-        if self.ndata == 0:
-            self._post.init()
-        else:
-            self._post.update(self._X, self._Y)
+        args = (self.like, self.kern, self.mean, self._X, self._Y)
+        if self._U is not None:
+            args += (self._U, )
+        self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
-        mu = self._post.mean.get_function(X)
-        s2 = (self._post.kern.get_kernel(X) if joint else
-              self._post.kern.get_dkernel(X))
+        mu = self.mean.get_function(X)
+        s2 = (self.kern.get_kernel(X) if joint else
+              self.kern.get_dkernel(X))
 
         # if we have data compute the posterior
         if self.ndata > 0:
-            if hasattr(self._post, 'U'):
-                K = self._post.kern.get_kernel(self._post.U, X)
+            if self._U is not None:
+                K = self.kern.get_kernel(self._U, X)
             else:
-                K = self._post.kern.get_kernel(self._X, X)
+                K = self.kern.get_kernel(self._X, X)
 
             # compute the mean and variance
             w = self._post.w.reshape(-1, 1)
@@ -139,15 +146,15 @@ class GP(ParameterizedModel):
             raise ValueError('cannot compute gradients of joint predictions')
 
         # Get the prior gradients. NOTE: this assumes a stationary kernel.
-        dmu = self._post.mean.get_gradx(X)
+        dmu = self.mean.get_gradx(X)
         ds2 = np.zeros_like(X)
 
         if self.ndata > 0:
             # get the kernel gradients
             if hasattr(self._post, 'U'):
-                dK = self._post.kern.get_gradx(X, self._post.U)
+                dK = self.kern.get_gradx(X, self._post.U)
             else:
-                dK = self._post.kern.get_gradx(X, self._X)
+                dK = self.kern.get_gradx(X, self._X)
 
             # reshape them to make it a 2d-array
             dK = np.rollaxis(dK, 1)
@@ -185,7 +192,7 @@ class GP(ParameterizedModel):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f = self._post.like.sample(f.ravel(), rng).reshape(f.shape)
+            f = self.like.sample(f.ravel(), rng).reshape(f.shape)
         if size is None:
             f = f.ravel()
         return f
@@ -236,8 +243,8 @@ class GP(ParameterizedModel):
             return ei, dei
 
 
-def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
-            inference='exact', **kwargs):
+def make_gp(sn2, rho, ell,
+            mean=0.0, ndim=None, kernel='se', inference='exact', U=None):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
     mean = functions.Constant(mean)
@@ -253,4 +260,9 @@ def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
     if kernel is None:
         raise ValueError('Unknown kernel type')
 
-    return GP(like, kern, mean, inference, **kwargs)
+    if inference in ['exact', 'laplace', 'fitc']:
+        infer = getattr(gpinference, inference)
+    else:
+        raise ValueError('Unknown inference method')
+
+    return GP(like, kern, mean, infer, U)

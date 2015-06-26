@@ -19,14 +19,14 @@ if __name__ == '__main__':
     xmax = data['X'].max()
 
     like = rg.likelihoods.Probit()
-    kern = gp1._post.kern.copy()
-    mean = gp1._post.mean.copy()
+    kern = gp1.kern.copy()
+    mean = gp1.mean.copy()
 
     f = gp1.sample_f(100)
     X = mg.uniform([(xmin, xmax)], 1000)
     Y = like.sample(f.get(X))
 
-    gp2 = rg.GP(like, kern, mean, inference='laplace')
+    gp2 = rg.GP(like, kern, mean, infer=rg.models.gpinference.laplace)
     gp2.add_data(X, Y)
     gp2.optimize()
 
