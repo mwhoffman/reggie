@@ -145,9 +145,8 @@ class GP(ParameterizedModel):
         if joint:
             raise ValueError('cannot compute gradients of joint predictions')
 
-        # Get the prior gradients. NOTE: this assumes a stationary kernel.
         dmu = self.mean.get_gradx(X)
-        ds2 = np.zeros_like(X)
+        ds2 = self.kernel.get_dgradx(X)
 
         if self.ndata > 0:
             # get the kernel gradients
@@ -157,6 +156,7 @@ class GP(ParameterizedModel):
                 dK = self.kern.get_gradx(X, self._X)
 
             # reshape them to make it a 2d-array
+            dK = self.kern.get_gradx(X, self._X)
             dK = np.rollaxis(dK, 1)
             dK = np.reshape(dK, (dK.shape[0], -1))
 

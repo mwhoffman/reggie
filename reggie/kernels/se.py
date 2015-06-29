@@ -79,6 +79,9 @@ class SE(RealKernel):
         G = -K[:, :, None] * D / self._ell
         return G
 
+    def get_dgradx(self, X1):
+        return np.zeros_like(X1)
+
     def get_gradxy(self, X1, X2=None):
         X1, X2 = rescale(self._ell, X1, X2)
         D = diff(X1, X2)
