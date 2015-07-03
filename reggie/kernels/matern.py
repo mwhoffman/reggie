@@ -88,13 +88,14 @@ class Matern(RealKernel):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
-        X1, X2 = rescale(self._ell / np.sqrt(self._d), X1, X2)
+        ell = self._ell / np.sqrt(self._d)
+        X1, X2 = rescale(ell, X1, X2)
         D1 = diff(X1, X2)
         D = np.sqrt(np.sum(D1**2, axis=-1))
         S = self._rho * np.exp(-D)
         with np.errstate(invalid='ignore'):
             M = np.where(D < 1e-12, 0, S * self._g(D) / D)
-        G = -M[:, :, None] * D1 / self._ell
+        G = -M[:, :, None] * D1 / ell
         return G
 
     def get_dgradx(self, X1):
