@@ -10,7 +10,7 @@ from __future__ import print_function
 from ...core.params import Parameterized
 from ...likelihoods._core import Likelihood
 from ...kernels._core import Kernel
-from ...functions._core import Function
+from ...means._core import Mean
 
 
 __all__ = ['Inference']
@@ -24,7 +24,7 @@ class Inference(Parameterized):
         super(Inference, self).__init__()
         self.like = self._register_obj('like', like, Likelihood)
         self.kern = self._register_obj('kern', kern, Kernel)
-        self.mean = self._register_obj('mean', mean, Function)
+        self.mean = self._register_obj('mean', mean, Mean)
         self.init()
 
     def __info__(self):

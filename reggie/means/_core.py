@@ -10,12 +10,12 @@ import numpy as np
 
 from ..core.params import Parameterized
 
-__all__ = ['Function']
+__all__ = ['Mean']
 
 
 ### BASE KERNEL INTERFACE #####################################################
 
-class Function(Parameterized):
+class Mean(Parameterized):
     """
     The base Function interface.
     """

@@ -13,7 +13,7 @@ import mwhutils.random as random
 
 from .. import likelihoods
 from .. import kernels
-from .. import functions
+from .. import means
 
 from ._core import ParameterizedModel
 from . import gpinference
@@ -240,7 +240,7 @@ def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
             inference='exact', **kwargs):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
-    mean = functions.Constant(mean)
+    mean = means.Constant(mean)
 
     # create a kernel object which depends on the string identifier
     kern = (
