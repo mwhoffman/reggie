@@ -185,11 +185,11 @@ def fitc(like, kern, mean, X, Y, U):
     for i, (dKuu, dKux, dkxx) in enumerate(dK, i):
         M = 2*dKux - np.dot(dKuu, B)
         v = dkxx - np.sum(M*B, axis=0)
-        dlZ[i] = (
-            - np.sum(dkxx/ell**2)
-            - np.inner(w, dKuu.dot(w) - 2*dKux.dot(a))
-            + np.inner(a, v*a) + np.inner(np.sum(W**2, axis=0), v)
-            + np.sum(M.dot(W.T) * B.dot(W.T))) / 2.0
+        dlZ[i] = 0.5 * (- np.sum(dkxx/ell**2)
+                        - np.inner(w, dKuu.dot(w) - 2*dKux.dot(a))
+                        + np.inner(a, v*a)
+                        + np.inner(np.sum(W**2, axis=0), v)
+                        + np.sum(M.dot(W.T) * B.dot(W.T)))
 
     for i, dmu in enumerate(mean.get_grad(X), i+1):
         dlZ[i] = np.dot(dmu, a)

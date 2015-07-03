@@ -104,7 +104,8 @@ class BasicModel(Model):
 
     def _update(self):
         """
-        Update any internal model parameters or statistics."""
+        Update any internal model parameters or statistics.
+        """
         pass
 
     @property

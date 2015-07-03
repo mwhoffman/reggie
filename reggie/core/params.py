@@ -44,6 +44,7 @@ class Parameter(object):
     for the externally facing code.
     """
     def __init__(self, value, domain, prior=None, block=0):
+        super(Parameter, self).__init__()
         self.value = value
         self.prior = prior
         self.block = block
@@ -168,6 +169,7 @@ class Parameters(object):
     of the parameters are changed then obj._update() will be called.
     """
     def __init__(self, obj, params=None):
+        super(Parameters, self).__init__()
         self.__obj = obj
         self.__params = OrderedDict([] if (params is None) else params)
 
@@ -306,6 +308,7 @@ class Parameters(object):
             raise RuntimeError('priors cannot be set for more than one '
                                'parameter at a time')
         self.__params.values()[0].set_prior(prior, *args, **kwargs)
+        # pylint: disable=protected-access
         self.__obj._update()
 
     def set_value(self, theta, transform=False):
@@ -318,6 +321,7 @@ class Parameters(object):
             b = a + param.value.size
             param.set_value(theta[a:b], transform)
             a = b
+        # pylint: disable=protected-access
         self.__obj._update()
 
     def get_value(self, transform=False):
@@ -467,6 +471,7 @@ class Parameterized(object):
                              .format(name, ', '.join(map(str, shape))))
 
         # save the parameter
+        # pylint: disable=protected-access
         self.params._register(name, Parameter(param, domain))
 
         # return the array
@@ -485,5 +490,6 @@ class Parameterized(object):
             raise ValueError(msg.format(name))
 
         param = param.copy()
+        # pylint: disable=protected-access
         self.params._register(name, param.params)
         return param
