@@ -52,10 +52,13 @@ class GP(ParameterizedModel):
         return info
 
     def _update(self):
-        args = (self.like, self.kern, self.mean, self._X, self._Y)
-        if self._U is not None:
-            args += (self._U, )
-        self._post = self._infer(*args)
+        if self._X is None:
+            self._post = None
+        else:
+            args = (self.like, self.kern, self.mean, self._X, self._Y)
+            if self._U is not None:
+                args += (self._U, )
+            self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
@@ -119,7 +122,7 @@ class GP(ParameterizedModel):
         return mu, s2, dmu, ds2
 
     def get_loglike(self, grad=False):
-        if self._post is not None:
+        if self._post is None:
             return (0.0, np.zeros(self.params.size)) if grad else 0.0
         else:
             return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ

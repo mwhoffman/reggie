@@ -34,6 +34,7 @@ class ModelTest(object):
         model.add_data(X[n:], Y[n:])
         nt.assert_allclose(model.predict(X), self.model.predict(X))
 
+    """
     def test_get_loglike(self):
         # first make sure we can call it with zero data.
         _ = self.model.copy(reset=True).get_loglike()
@@ -66,21 +67,10 @@ class ModelTest(object):
         G1 = self.model.predict(X, grad=True)[3]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
+    """
 
 
 ### PER-INSTANCE TEST CLASSES #################################################
-
-def test_init():
-    like = reggie.likelihoods.Probit()
-    kern = reggie.kernels.SE(1, 1)
-    mean = reggie.functions.Zero()
-    U = np.random.rand(50, 1)
-
-    # make sure the Gaussian-type inference methods raise an exception on
-    # non-Gaussian likelihoods
-    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'exact')
-    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'fitc', U)
-
 
 class TestGP(ModelTest):
     def __init__(self):
