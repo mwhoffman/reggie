@@ -14,7 +14,7 @@ import mwhutils.random as random
 
 from .. import likelihoods
 from .. import kernels
-from .. import functions
+from .. import means
 
 from ._core import ParameterizedModel
 
@@ -62,7 +62,7 @@ class GP(ParameterizedModel):
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
-        mu = self.mean.get_function(X)
+        mu = self.mean.get_mean(X)
         s2 = (self.kern.get_kernel(X) if joint else
               self.kern.get_dkernel(X))
 
@@ -192,7 +192,7 @@ def make_gp(sn2, rho, ell,
             mean=0.0, ndim=None, kernel='se', inference='exact', U=None):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
-    mean = functions.Constant(mean)
+    mean = means.Constant(mean)
 
     # create a kernel object which depends on the string identifier
     kern = (

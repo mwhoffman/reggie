@@ -39,7 +39,7 @@ class FourierSample(object):
             A = la.add_diagonal(A, gp.like.get_variance())
 
             L = la.cholesky(A)
-            r = Y - self._mean.get_function(X)
+            r = Y - self._mean.get_mean(X)
             p = np.sqrt(gp.like.get_variance()) * rng.randn(n)
 
             self._theta = la.solve_cholesky(L, np.dot(Phi.T, r))
@@ -59,7 +59,7 @@ class FourierSample(object):
         X = np.array(X, ndmin=2, copy=False)
         Z = np.dot(X, self._W.T) + self._b
 
-        F = self._mean.get_function(X)
+        F = self._mean.get_mean(X)
         F += np.dot(self._a * np.cos(Z), self._theta)
 
         if not grad:

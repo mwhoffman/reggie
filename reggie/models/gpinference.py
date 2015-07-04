@@ -25,7 +25,7 @@ Statistics.__new__.__defaults__ = (None, )
 def exact(like, kern, mean, X, Y):
     K = kern.get_kernel(X)
     K = la.add_diagonal(K, like.get_variance())
-    r = Y - mean.get_function(X)
+    r = Y - mean.get_mean(X)
 
     # the posterior parameterization
     L = la.cholesky(K)
@@ -60,7 +60,7 @@ def laplace(like, kern, mean, X, Y):
     # grab the kernel, mean, and initialize the weights
     K = kern.get_kernel(X)
     L = None
-    m = mean.get_function(X)
+    m = mean.get_mean(X)
     a = np.zeros(K.shape[1])
 
     def psi(a):
@@ -144,7 +144,7 @@ def fitc(like, kern, mean, X, Y, U):
     Luu = la.cholesky(Kuu)
 
     V = la.solve_triangular(Luu, Kux)
-    r = (Y - mean.get_function(X))
+    r = (Y - mean.get_mean(X))
 
     ell = np.sqrt(kxx - np.sum(V**2, axis=0))
     V /= ell
