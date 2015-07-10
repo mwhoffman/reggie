@@ -18,8 +18,9 @@ from .. import means
 
 from ._core import ParameterizedModel
 
-from . import gpsample
 from . import gpinference
+from . import gpsample
+from . import gpmax
 
 __all__ = ['GP', 'make_gp']
 
@@ -142,9 +143,6 @@ class GP(ParameterizedModel):
             f = f.ravel()
         return f
 
-    def sample_f(self, n, rng=None):
-        return gpsample.FourierSample(self, n, rng)
-
     def predict(self, X, grad=False):
         return self._predict(X, grad=grad)
 
@@ -186,6 +184,23 @@ class GP(ParameterizedModel):
             dei = 0.5 * ds2 / s2[:, None]
             dei *= (ei - s * z * cdf)[:, None] + cdf[:, None] * dmu
             return ei, dei
+
+    def get_entropy(self, X):
+        """
+        Return the marginal predictive entropy.
+        """
+        s2 = self.predict(X)[1] + self.like.get_variance()
+        return 0.5 * np.log(2 * np.pi * np.e * s2)
+
+    def sample_f(self, n, rng=None):
+        return gpsample.FourierSample(self, n, rng)
+
+    def condition_xstar(self, xstar):
+        pass
+
+    def condition_fstar(self, fstar):
+        return gpmax.GP_fstar(self.like, self.kern, self.mean,
+                              self._X, self._Y, fstar)
 
 
 def make_gp(sn2, rho, ell,

@@ -22,7 +22,7 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure()
+    fig = mp.figure(num=1)
     fig.hold()
     fig.plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
     fig.scatter(X, Y, 'observed data')
