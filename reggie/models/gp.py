@@ -29,50 +29,74 @@ class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, infer, U=None):
+    def __init__(self, like, kern, mean, inference='exact', U=None):
         # initialize
         super(GP, self).__init__()
 
         # store the component objects
-        self.like = self._register_obj('like', like)
-        self.kern = self._register_obj('kern', kern)
-        self.mean = self._register_obj('kern', mean)
+        self._like = self._register_obj('like', like)
+        self._kern = self._register_obj('kern', kern)
+        self._mean = self._register_obj('kern', mean)
 
-        self._U = U
+        if isinstance(inference, basestring):
+            if inference in gpinference.__all__:
+                inference = getattr(gpinference, inference)
+            else:
+                raise ValueError('Unknown inference method')
+
+        # FIXME: there should probably be a check here to see if the inference
+        # method supports inducing points. Also we should check whether the
+        # inference method requires Gaussian likelihoods.
+
+        # store the inference method, the posterior sufficient statistics (None
+        # so far) and any inducing points. inducing points.
+        self._infer = inference
         self._post = None
-        self._infer = infer
+        self._U = U
 
     def __info__(self):
         info = [
-            ('like', self.like),
-            ('kern', self.kern),
-            ('mean', self.mean),
-            ('infer', self._infer)]
+            ('like', self._like),
+            ('kern', self._kern),
+            ('mean', self._mean)]
+
+        inference = self._infer.__name__
+        inferences = gpinference.__all__
+
+        # append the inference method if it is non-default
+        if inference in inferences:
+            if inference is not 'exact':
+                info.append(('inference', inference))
+        else:
+            info.append(('inference', self._infer))
+
+        # append if we have any inducing points.
         if self._U is not None:
             info.append(('U', self._U))
+
         return info
 
     def _update(self):
         if self._X is None:
             self._post = None
         else:
-            args = (self.like, self.kern, self.mean, self._X, self._Y)
+            args = (self._like, self._kern, self._mean, self._X, self._Y)
             if self._U is not None:
                 args += (self._U, )
             self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
-        mu = self.mean.get_mean(X)
-        s2 = (self.kern.get_kernel(X) if joint else
-              self.kern.get_dkernel(X))
+        mu = self._mean.get_mean(X)
+        s2 = (self._kern.get_kernel(X) if joint else
+              self._kern.get_dkernel(X))
 
         # if we have data compute the posterior
         if self._post is not None:
             if self._U is not None:
-                K = self.kern.get_kernel(self._U, X)
+                K = self._kern.get_kernel(self._U, X)
             else:
-                K = self.kern.get_kernel(self._X, X)
+                K = self._kern.get_kernel(self._X, X)
 
             # compute the mean and variance
             w = self._post.w.reshape(-1, 1)
@@ -91,18 +115,18 @@ class GP(ParameterizedModel):
         if joint:
             raise ValueError('cannot compute gradients of joint predictions')
 
-        dmu = self.mean.get_gradx(X)
-        ds2 = self.kernel.get_dgradx(X)
+        dmu = self._mean.get_gradx(X)
+        ds2 = self._kern.get_dgradx(X)
 
         if self._post is not None:
             # get the kernel gradients
             if hasattr(self._post, 'U'):
-                dK = self.kern.get_gradx(X, self._post.U)
+                dK = self._kern.get_gradx(X, self._post.U)
             else:
-                dK = self.kern.get_gradx(X, self._X)
+                dK = self._kern.get_gradx(X, self._X)
 
             # reshape them to make it a 2d-array
-            dK = self.kern.get_gradx(X, self._X)
+            dK = self._kern.get_gradx(X, self._X)
             dK = np.rollaxis(dK, 1)
             dK = np.reshape(dK, (dK.shape[0], -1))
 
@@ -138,7 +162,7 @@ class GP(ParameterizedModel):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f = self.like.sample(f.ravel(), rng).reshape(f.shape)
+            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
         if size is None:
             f = f.ravel()
         return f
@@ -189,17 +213,17 @@ class GP(ParameterizedModel):
         """
         Return the marginal predictive entropy.
         """
-        s2 = self.predict(X)[1] + self.like.get_variance()
+        s2 = self.predict(X)[1] + self._like.get_variance()
         return 0.5 * np.log(2 * np.pi * np.e * s2)
 
     def sample_f(self, n, rng=None):
         return gpsample.FourierSample(self, n, rng)
 
     def condition_xstar(self, xstar):
-        pass
+        raise NotImplementedError
 
     def condition_fstar(self, fstar):
-        return gpmax.GP_fstar(self.like, self.kern, self.mean,
+        return gpmax.GP_fstar(self._like, self._kern, self._mean,
                               self._X, self._Y, fstar)
 
 
@@ -220,9 +244,4 @@ def make_gp(sn2, rho, ell,
     if kernel is None:
         raise ValueError('Unknown kernel type')
 
-    if inference in ['exact', 'laplace', 'fitc']:
-        infer = getattr(gpinference, inference)
-    else:
-        raise ValueError('Unknown inference method')
-
-    return GP(like, kern, mean, infer, U)
+    return GP(like, kern, mean, inference, U)

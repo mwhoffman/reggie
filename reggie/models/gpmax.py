@@ -11,7 +11,8 @@ import scipy.stats as ss
 import mwhutils.linalg as la
 
 
-def get_factors(m0, V0, fstar):
+
+def get_factors_fstar(m0, V0, fstar):
     """
     Given a Gaussian distribution with mean and covariance (m0, V0) use EP to
     find a Gaussian approximating the constraint that each latent variable is
@@ -84,35 +85,35 @@ class GP_fstar(object):
         V0 = K - np.dot(A.T, A)
 
         # get the EP factors and construct convolving factor
-        tau, rho = get_factors(m0, V0, fstar)
+        tau, rho = get_factors_fstar(m0, V0, fstar)
         omega = sn2 / (1 + sn2*tau)
 
         # save the model
-        self.like = like
-        self.kern = kern
-        self.mean = mean
+        self._like = like
+        self._kern = kern
+        self._mean = mean
 
         # save the data
-        self.X = X
-        self.fstar = fstar
+        self._X = X
+        self._fstar = fstar
 
         # get the new posterior
-        self.L = la.cholesky(la.add_diagonal(K, omega))
-        self.a = la.solve_triangular(self.L, omega * (R/sn2 + rho))
+        self._L = la.cholesky(la.add_diagonal(K, omega))
+        self._a = la.solve_triangular(self._L, omega * (R/sn2 + rho))
 
     def predict(self, X, grad=False):
         # now evaluate the kernel at the new points and compute intermediate
         # terms
-        K = self.kern.get_kernel(self.X, X)
-        A = la.solve_triangular(self.L, K)
+        K = self._kern.get_kernel(self._X, X)
+        A = la.solve_triangular(self._L, K)
 
         # get the predictions before the final constraint
-        m1 = self.mean.get_mean(X) + np.dot(A.T, self.a)
-        v1 = self.kern.get_dkernel(X) - np.sum(A**2, axis=0)
+        m1 = self._mean.get_mean(X) + np.dot(A.T, self._a)
+        v1 = self._kern.get_dkernel(X) - np.sum(A**2, axis=0)
 
         # get terms necessary for the final constraint
         sigma = np.sqrt(v1)
-        alpha = (self.fstar - m1) / sigma
+        alpha = (self._fstar - m1) / sigma
         ratio = np.exp(ss.norm.logpdf(alpha) - ss.norm.logcdf(alpha))
         kappa = ratio + alpha
         delta = ratio - alpha
@@ -126,19 +127,19 @@ class GP_fstar(object):
             return m2, v2
 
         # get the "prior" gradient at X
-        dm1 = self.mean.get_gradx(X)
-        dv1 = self.kern.get_dgradx(X)
+        dm1 = self._mean.get_gradx(X)
+        dv1 = self._kern.get_dgradx(X)
 
         # get the kernel gradient and reshape it so we can do linear algebra
-        dK = self.kern.get_gradx(X, self.X)
+        dK = self._kern.get_gradx(X, self.X)
         dK = np.rollaxis(dK, 1)
         dK = np.reshape(dK, (dK.shape[0], -1))
 
         # compute the mean gradients
-        dm1 += np.dot(dK.T, self.a).reshape(X.shape)
+        dm1 += np.dot(dK.T, self._a).reshape(X.shape)
 
         # compute the variance gradients
-        dA = la.solve_triangular(self.L, dK)
+        dA = la.solve_triangular(self._L, dK)
         dA = np.rollaxis(np.reshape(dA, (-1,) + X.shape), 2)
         dv1 -= 2 * np.sum(dA * A, axis=1).T
 
@@ -151,5 +152,5 @@ class GP_fstar(object):
         return m2, v2, dm2, dv2
 
     def get_entropy(self, X):
-        s2 = self.predict(X)[1] + self.like.get_variance()
+        s2 = self.predict(X)[1] + self._like.get_variance()
         return 0.5 * np.log(2 * np.pi * np.e * s2)

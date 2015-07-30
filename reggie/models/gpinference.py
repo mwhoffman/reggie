@@ -13,7 +13,7 @@ import collections
 
 import mwhutils.linalg as la
 
-__all__ = ['exact']
+__all__ = ['exact', 'laplace', 'fitc']
 
 
 # create a named tuple which functions as storage for the posterior sufficient
