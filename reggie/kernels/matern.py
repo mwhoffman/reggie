@@ -7,11 +7,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.random as random
+
+from ..core.domains import POSITIVE
+from ..utils.misc import rstate
 
 from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
-from ..core.domains import POSITIVE
 
 __all__ = ['Matern']
 
@@ -105,7 +106,7 @@ class Matern(RealKernel):
         raise NotImplementedError
 
     def sample_spectrum(self, N, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         g = np.sqrt(rng.gamma(self._d / 2., 2. / self._d, N))
         W = rng.randn(N, self.ndim) / self._ell / g[:, None]
         a = float(self._rho)

@@ -7,8 +7,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.linalg as la
-import mwhutils.random as random
+
+from ..utils import linalg as la
+from ..utils.misc import rstate
 
 
 class FourierSample(object):
@@ -18,15 +19,15 @@ class FourierSample(object):
     sum of finitely many Fourier samples.
     """
     def __init__(self, gp, n, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
 
         # randomize the feature
-        W, a = gp.kern.sample_spectrum(n, rng)
+        W, a = gp._kern.sample_spectrum(n, rng)
 
         self._W = W
         self._b = rng.rand(n) * 2 * np.pi
         self._a = np.sqrt(2*a/n)
-        self._mean = gp.mean.copy()
+        self._mean = gp._mean.copy()
         self._theta = None
 
         if gp.ndata > 0:

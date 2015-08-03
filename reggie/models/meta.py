@@ -8,10 +8,11 @@ from __future__ import print_function
 
 import numpy as np
 
-from mwhutils.random import rstate
-
 from ._core import Model
+
 from ..learning import sample
+from ..utils.misc import rstate
+
 
 __all__ = ['MCMC']
 

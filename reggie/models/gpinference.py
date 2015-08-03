@@ -11,7 +11,7 @@ import scipy.optimize as spop
 import itertools as it
 import collections
 
-import mwhutils.linalg as la
+from ..utils import linalg as la
 
 __all__ = ['exact', 'laplace', 'fitc']
 

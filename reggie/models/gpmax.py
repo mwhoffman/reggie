@@ -8,8 +8,8 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.stats as ss
-import mwhutils.linalg as la
 
+from ..utils import linalg as la
 
 
 def get_factors_fstar(m0, V0, fstar):

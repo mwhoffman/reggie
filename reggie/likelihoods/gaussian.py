@@ -7,10 +7,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.random as random
 
 from ._core import Likelihood
 from ..core.domains import POSITIVE
+from ..utils.misc import rstate
 
 __all__ = ['Gaussian']
 
@@ -37,7 +37,7 @@ class Gaussian(Likelihood):
         return float(self._sn2)
 
     def sample(self, f, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         return f + rng.normal(size=len(f), scale=np.sqrt(self._sn2))
 
     def get_logprob(self, y, f):

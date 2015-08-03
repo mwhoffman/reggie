@@ -9,8 +9,8 @@ from __future__ import print_function
 import numpy as np
 import scipy.stats as ss
 
-import mwhutils.linalg as la
-import mwhutils.random as random
+from ..utils.misc import rstate
+from ..utils import linalg as la
 
 from .. import likelihoods
 from .. import kernels
@@ -154,7 +154,7 @@ class GP(ParameterizedModel):
 
     def sample(self, X, size=None, latent=True, rng=None):
         mu, Sigma = self._predict(X, joint=True)
-        rng = random.rstate(rng)
+        rng = rstate(rng)
 
         L = la.cholesky(la.add_diagonal(Sigma, 1e-10))
         m = 1 if (size is None) else size

@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from mwhutils.random import rstate
+from ..utils.misc import rstate
 
 __all__ = ['sample']
 
