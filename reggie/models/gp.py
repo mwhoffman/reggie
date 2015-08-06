@@ -217,7 +217,8 @@ class GP(ParameterizedModel):
         return 0.5 * np.log(2 * np.pi * np.e * s2)
 
     def sample_f(self, n, rng=None):
-        return gpsample.FourierSample(self, n, rng)
+        return gpsample.FourierSample(self._like, self._kern, self._mean,
+                                      self._X, self._Y, n, rng)
 
     def condition_xstar(self, xstar):
         raise NotImplementedError

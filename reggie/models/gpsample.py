@@ -18,30 +18,29 @@ class FourierSample(object):
     where this infinitely-parameterized object is approximated using a weighted
     sum of finitely many Fourier samples.
     """
-    def __init__(self, gp, n, rng=None):
+    def __init__(self, like, kern, mean, X, Y, n, rng=None):
         rng = rstate(rng)
 
         # randomize the feature
-        W, a = gp._kern.sample_spectrum(n, rng)
+        W, a = kern.sample_spectrum(n, rng)
 
         self._W = W
         self._b = rng.rand(n) * 2 * np.pi
         self._a = np.sqrt(2*a/n)
-        self._mean = gp._mean.copy()
+        self._mean = mean.copy()
         self._theta = None
 
-        if gp.ndata > 0:
-            X, Y = gp.data
+        if X is not None:
             Z = np.dot(X, self._W.T) + self._b
             Phi = np.cos(Z) * self._a
 
             # get the components for regression
             A = np.dot(Phi.T, Phi)
-            A = la.add_diagonal(A, gp.like.get_variance())
+            A = la.add_diagonal(A, like.get_variance())
 
             L = la.cholesky(A)
             r = Y - self._mean.get_mean(X)
-            p = np.sqrt(gp.like.get_variance()) * rng.randn(n)
+            p = np.sqrt(like.get_variance()) * rng.randn(n)
 
             self._theta = la.solve_cholesky(L, np.dot(Phi.T, r))
             self._theta += la.solve_triangular(L, p, True)
