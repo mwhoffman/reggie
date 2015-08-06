@@ -8,8 +8,8 @@ from __future__ import print_function
 
 import numpy as np
 
-from ..utils import linalg as la
-from ..utils.misc import rstate
+from ...utils import linalg as la
+from ...utils.misc import rstate
 
 
 class FourierSample(object):

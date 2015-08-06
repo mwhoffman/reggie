@@ -9,7 +9,7 @@ from __future__ import print_function
 import numpy as np
 import scipy.stats as ss
 
-from ..utils import linalg as la
+from ...utils import linalg as la
 
 
 def get_factors_fstar(m0, V0, fstar):
@@ -126,21 +126,21 @@ class GP_fstar(object):
         if grad is False:
             return m2, v2
 
-        # get the "prior" gradient at X
-        dm1 = self._mean.get_gradx(X)
-        dv1 = self._kern.get_dgradx(X)
-
         # get the kernel gradient and reshape it so we can do linear algebra
         dK = self._kern.get_gradx(X, self.X)
         dK = np.rollaxis(dK, 1)
         dK = np.reshape(dK, (dK.shape[0], -1))
 
-        # compute the mean gradients
-        dm1 += np.dot(dK.T, self._a).reshape(X.shape)
-
         # compute the variance gradients
         dA = la.solve_triangular(self._L, dK)
         dA = np.rollaxis(np.reshape(dA, (-1,) + X.shape), 2)
+
+        # get the "prior" gradient at X
+        dm1 = self._mean.get_gradx(X)
+        dv1 = self._kern.get_dgradx(X)
+
+        # update to get the posterior gradients
+        dm1 += np.dot(dK.T, self._a).reshape(X.shape)
         dv1 -= 2 * np.sum(dA * A, axis=1).T
 
         dm2 = (1 + ratio**2 - ratio * alpha)[:, None] * dm1

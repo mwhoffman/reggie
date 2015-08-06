@@ -8,17 +8,18 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.optimize as spop
-import itertools as it
-import collections
 
-from ..utils import linalg as la
+from collections import namedtuple
+from itertools import izip
+
+from ...utils import linalg as la
 
 __all__ = ['exact', 'laplace', 'fitc']
 
 
 # create a named tuple which functions as storage for the posterior sufficient
 # statistics.
-Statistics = collections.namedtuple('Statistics', 'L, a, w, lZ, dlZ, C')
+Statistics = namedtuple('Statistics', 'L, a, w, lZ, dlZ, C')
 Statistics.__new__.__defaults__ = (None, )
 
 
@@ -175,7 +176,9 @@ def fitc(like, kern, mean, X, Y, U):
         + (np.inner(a, v*a) + np.inner(np.sum(W**2, axis=0), v)) / 2 / sn2)
 
     # iterator over gradients of the kernels
-    dK = it.izip(kern.get_grad(U), kern.get_grad(U, X), kern.get_dgrad(X))
+    dK = izip(kern.get_grad(U),
+              kern.get_grad(U, X),
+              kern.get_dgrad(X))
 
     # we need to keep track of how many gradients we've already computed.
     # note also that at the end of the next loop this variable will have

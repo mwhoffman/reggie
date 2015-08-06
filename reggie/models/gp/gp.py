@@ -9,18 +9,18 @@ from __future__ import print_function
 import numpy as np
 import scipy.stats as ss
 
-from ..utils.misc import rstate
-from ..utils import linalg as la
+from ...utils.misc import rstate
+from ...utils import linalg as la
+from .._core import ParameterizedModel
 
-from .. import likelihoods
-from .. import kernels
-from .. import means
+from .fourier import FourierSample
+from .fstar import GP_fstar
 
-from ._core import ParameterizedModel
+from ... import likelihoods
+from ... import kernels
+from ... import means
 
-from . import gpinference
-from . import gpsample
-from . import gpmax
+from . import inference
 
 __all__ = ['GP', 'make_gp']
 
@@ -29,7 +29,7 @@ class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, inference='exact', U=None):
+    def __init__(self, like, kern, mean, inf='exact', U=None):
         # initialize
         super(GP, self).__init__()
 
@@ -38,9 +38,9 @@ class GP(ParameterizedModel):
         self._kern = self._register_obj('kern', kern)
         self._mean = self._register_obj('kern', mean)
 
-        if isinstance(inference, basestring):
-            if inference in gpinference.__all__:
-                inference = getattr(gpinference, inference)
+        if isinstance(inf, basestring):
+            if inf in inference.__all__:
+                inf = getattr(inference, inf)
             else:
                 raise ValueError('Unknown inference method')
 
@@ -50,7 +50,7 @@ class GP(ParameterizedModel):
 
         # store the inference method, the posterior sufficient statistics (None
         # so far) and any inducing points. inducing points.
-        self._infer = inference
+        self._infer = inf
         self._post = None
         self._U = U
 
@@ -60,15 +60,14 @@ class GP(ParameterizedModel):
             ('kern', self._kern),
             ('mean', self._mean)]
 
-        inference = self._infer.__name__
-        inferences = gpinference.__all__
+        inf = self._infer.__name__
 
         # append the inference method if it is non-default
-        if inference in inferences:
-            if inference is not 'exact':
-                info.append(('inference', inference))
+        if inf in inference.__all__:
+            if inf is not 'exact':
+                info.append(('inf', inference))
         else:
-            info.append(('inference', self._infer))
+            info.append(('inf', self._infer))
 
         # append if we have any inducing points.
         if self._U is not None:
@@ -217,19 +216,19 @@ class GP(ParameterizedModel):
         return 0.5 * np.log(2 * np.pi * np.e * s2)
 
     def sample_f(self, n, rng=None):
-        return gpsample.FourierSample(self._like, self._kern, self._mean,
-                                      self._X, self._Y, n, rng)
+        return FourierSample(self._like, self._kern, self._mean,
+                             self._X, self._Y, n, rng)
 
     def condition_xstar(self, xstar):
         raise NotImplementedError
 
     def condition_fstar(self, fstar):
-        return gpmax.GP_fstar(self._like, self._kern, self._mean,
-                              self._X, self._Y, fstar)
+        return GP_fstar(self._like, self._kern, self._mean,
+                        self._X, self._Y, fstar)
 
 
 def make_gp(sn2, rho, ell,
-            mean=0.0, ndim=None, kernel='se', inference='exact', U=None):
+            mean=0.0, ndim=None, kernel='se', inf='exact', U=None):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
     mean = means.Constant(mean)
@@ -245,4 +244,4 @@ def make_gp(sn2, rho, ell,
     if kernel is None:
         raise ValueError('Unknown kernel type')
 
-    return GP(like, kern, mean, inference, U)
+    return GP(like, kern, mean, inf, U)
