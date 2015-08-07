@@ -66,7 +66,7 @@ class GP(ParameterizedModel):
         # append the inference method if it is non-default
         if inf in inference.__all__:
             if inf is not 'exact':
-                info.append(('inf', inference))
+                info.append(('inf', inf))
         else:
             info.append(('inf', self._infer))
 
@@ -120,13 +120,12 @@ class GP(ParameterizedModel):
 
         if self._post is not None:
             # get the kernel gradients
-            if hasattr(self._post, 'U'):
-                dK = self._kern.get_gradx(X, self._post.U)
+            if self._U is not None:
+                dK = self._kern.get_gradx(X, self._U)
             else:
                 dK = self._kern.get_gradx(X, self._X)
 
             # reshape them to make it a 2d-array
-            dK = self._kern.get_gradx(X, self._X)
             dK = np.rollaxis(dK, 1)
             dK = np.reshape(dK, (dK.shape[0], -1))
 

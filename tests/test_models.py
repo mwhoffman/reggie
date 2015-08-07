@@ -34,7 +34,6 @@ class ModelTest(object):
         model.add_data(X[n:], Y[n:])
         nt.assert_allclose(model.predict(X), self.model.predict(X))
 
-    """
     def test_get_loglike(self):
         # first make sure we can call it with zero data.
         _ = self.model.copy(reset=True).get_loglike()
@@ -67,7 +66,6 @@ class ModelTest(object):
         G1 = self.model.predict(X, grad=True)[3]
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
-    """
 
 
 ### PER-INSTANCE TEST CLASSES #################################################
@@ -82,13 +80,13 @@ class TestGP(ModelTest):
 class TestGP_FITC(ModelTest):
     def __init__(self):
         U = np.random.rand(50, 2)
-        gp = models.make_gp(0.7, 1, [1., 1.], inference='fitc', U=U)
+        gp = models.make_gp(0.7, 1, [1., 1.], inf='fitc', U=U)
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)
 
 
 class TestGP_Laplace(ModelTest):
     def __init__(self):
-        gp = models.make_gp(0.7, 1, [1., 1.], inference='laplace')
+        gp = models.make_gp(0.7, 1, [1., 1.], inf='laplace')
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)
