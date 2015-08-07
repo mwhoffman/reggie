@@ -99,7 +99,7 @@ class GP_fstar(object):
 
         # get the new posterior
         self._L = la.cholesky(la.add_diagonal(K, omega))
-        self._a = la.solve_triangular(self._L, omega * (R/sn2 + rho))
+        self._a = la.solve_cholesky(self._L, omega * (R/sn2 + rho))
 
     def predict(self, X, grad=False):
         # now evaluate the kernel at the new points and compute intermediate
@@ -108,7 +108,7 @@ class GP_fstar(object):
         A = la.solve_triangular(self._L, K)
 
         # get the predictions before the final constraint
-        m1 = self._mean.get_mean(X) + np.dot(A.T, self._a)
+        m1 = self._mean.get_mean(X) + np.dot(K.T, self._a)
         v1 = self._kern.get_dkernel(X) - np.sum(A**2, axis=0)
 
         # get terms necessary for the final constraint
@@ -116,18 +116,21 @@ class GP_fstar(object):
         alpha = (self._fstar - m1) / sigma
         ratio = np.exp(ss.norm.logpdf(alpha) - ss.norm.logcdf(alpha))
         kappa = ratio + alpha
-        delta = ratio - alpha
-        gamma = ratio * (delta*kappa + ratio*delta + 1)
+        gamma = ratio * sigma * ((kappa + ratio) * kappa - 1)
 
-        # incorporatee the prior constraint
+        # incorporate the final constraint
         m2 = m1 - ratio * sigma
-        v2 = v1 - v1 * ratio * (ratio + alpha)
+        v2 = v1 * (1 - ratio * kappa)
 
         if grad is False:
             return m2, v2
 
+        # get the prior gradient at X
+        dm1 = self._mean.get_gradx(X)
+        dv1 = self._kern.get_dgradx(X)
+
         # get the kernel gradient and reshape it so we can do linear algebra
-        dK = self._kern.get_gradx(X, self.X)
+        dK = self._kern.get_gradx(X, self._X)
         dK = np.rollaxis(dK, 1)
         dK = np.reshape(dK, (dK.shape[0], -1))
 
@@ -135,19 +138,15 @@ class GP_fstar(object):
         dA = la.solve_triangular(self._L, dK)
         dA = np.rollaxis(np.reshape(dA, (-1,) + X.shape), 2)
 
-        # get the "prior" gradient at X
-        dm1 = self._mean.get_gradx(X)
-        dv1 = self._kern.get_dgradx(X)
-
         # update to get the posterior gradients
         dm1 += np.dot(dK.T, self._a).reshape(X.shape)
         dv1 -= 2 * np.sum(dA * A, axis=1).T
 
-        dm2 = (1 + ratio**2 - ratio * alpha)[:, None] * dm1
-        dm2 += 0.5 * ((ratio*alpha*kappa - ratio**2) / sigma)[:, None] * dv1
+        dm2 = (1 - ratio * kappa)[:, None] * dm1
+        dm2 -= (ratio/2/sigma * (1 + alpha * kappa))[:, None] * dv1
 
-        dv2 = (1 - ratio*kappa - 0.5*alpha*gamma)[:, None] * dv1
-        dv2 -= (gamma*sigma)[:, None] * dm1
+        dv2 = -gamma[:, None] * dm1
+        dv2 += (1 - ratio * kappa - 0.5 * gamma * alpha / sigma)[:, None] * dv1
 
         return m2, v2, dm2, dv2
 

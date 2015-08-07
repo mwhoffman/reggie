@@ -76,6 +76,23 @@ class TestGP(ModelTest):
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)
 
+    def test_fstar(self):
+        # first check that we can even evaluate the posterior.
+        X, _ = self.model.data
+        model = self.model.condition_fstar(0.7)
+
+        # check the mu gradients
+        f = lambda x: model.predict(x[None], True)[0]
+        G1 = model.predict(X, True)[2]
+        G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
+        nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
+
+        # check the s2 gradients
+        f = lambda x: model.predict(x[None])[1]
+        G1 = model.predict(X, grad=True)[3]
+        G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
+        nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
+
 
 class TestGP_FITC(ModelTest):
     def __init__(self):
