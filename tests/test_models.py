@@ -93,6 +93,12 @@ class TestGP(ModelTest):
         G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
         nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
 
+        # check the s2 gradients
+        f = lambda x: model.get_entropy(x[None])
+        G1 = model.get_entropy(X, grad=True)[1]
+        G2 = np.array([spop.approx_fprime(x, f, 1e-8) for x in X])
+        nt.assert_allclose(G1, G2, rtol=1e-6, atol=1e-6)
+
 
 class TestGP_FITC(ModelTest):
     def __init__(self):

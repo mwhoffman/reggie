@@ -150,6 +150,18 @@ class GP_fstar(object):
 
         return m2, v2, dm2, dv2
 
-    def get_entropy(self, X):
-        s2 = self.predict(X)[1] + self._like.get_variance()
-        return 0.5 * np.log(2 * np.pi * np.e * s2)
+    def get_entropy(self, X, grad=False):
+        # compute the differential entropy
+        vals = self.predict(X, grad)
+        s2 = vals[1]
+        sp2 = s2 + self._like.get_variance()
+        H = 0.5 * np.log(2 * np.pi * np.e * sp2)
+
+        if not grad:
+            return H
+
+        # get the derivative of the entropy
+        ds2 = vals[3]
+        dH = 0.5 * ds2 / sp2[:, None]
+
+        return H, dH
