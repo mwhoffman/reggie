@@ -17,6 +17,17 @@ from ..utils.misc import rstate
 __all__ = ['MCMC']
 
 
+def _integrate(parts, grad):
+    """
+    Helper function to integrate over a function and potentially its
+    derivatives.
+    """
+    if grad:
+        return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
+    else:
+        return np.mean(parts, axis=0)
+
+
 class MCMC(Model):
     """
     Model which implements MCMC to produce a posterior over parameterized
@@ -27,6 +38,9 @@ class MCMC(Model):
         self._burn = burn
         self._rng = rstate(rng)
         self._models = self._sample(model.copy(), burn=True)
+
+    def __iter__(self):
+        return iter(self._models)
 
     @property
     def samples(self):
@@ -94,14 +108,12 @@ class MCMC(Model):
 
     def get_tail(self, X, f, grad=False):
         parts = [m.get_tail(X, f, grad) for m in self._models]
-        if grad:
-            return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
-        else:
-            return np.mean(parts, axis=0)
+        return _integrate(parts, grad)
 
     def get_improvement(self, X, f, grad=False):
         parts = [m.get_improvement(X, f, grad) for m in self._models]
-        if grad:
-            return tuple([np.mean(_, axis=0) for _ in zip(*parts)])
-        else:
-            return np.mean(parts, axis=0)
+        return _integrate(parts, grad)
+
+    def get_entropy(self, X, grad=False):
+        parts = [m.get_entropy(X, grad) for m in self._models]
+        return _integrate(parts, grad)

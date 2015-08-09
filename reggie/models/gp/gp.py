@@ -37,7 +37,7 @@ class GP(ParameterizedModel):
         # store the component objects
         self._like = self._register_obj('like', like)
         self._kern = self._register_obj('kern', kern)
-        self._mean = self._register_obj('kern', mean)
+        self._mean = self._register_obj('mean', mean)
 
         if isinstance(inf, basestring):
             if inf in inference.__all__:
@@ -208,12 +208,24 @@ class GP(ParameterizedModel):
             dei *= (ei - s * z * cdf)[:, None] + cdf[:, None] * dmu
             return ei, dei
 
-    def get_entropy(self, X):
+    def get_entropy(self, X, grad=False):
         """
         Return the marginal predictive entropy.
         """
-        s2 = self.predict(X)[1] + self._like.get_variance()
-        return 0.5 * np.log(2 * np.pi * np.e * s2)
+        # compute the differential entropy
+        vals = self.predict(X, grad)
+        s2 = vals[1]
+        sp2 = s2 + self._like.get_variance()
+        H = 0.5 * np.log(2 * np.pi * np.e * sp2)
+
+        if not grad:
+            return H
+
+        # get the derivative of the entropy
+        ds2 = vals[3]
+        dH = 0.5 * ds2 / sp2[:, None]
+
+        return H, dH
 
     def sample_f(self, n, rng=None):
         return FourierSample(self._like, self._kern, self._mean,
