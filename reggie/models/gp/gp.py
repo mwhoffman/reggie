@@ -14,8 +14,6 @@ from ...utils import linalg as la
 from .._core import ParameterizedModel
 
 from .fourier import FourierSample
-from .fstar import GP_fstar
-from .xstar import GP_xstar
 
 from ... import likelihoods
 from ... import kernels
@@ -230,14 +228,6 @@ class GP(ParameterizedModel):
     def sample_f(self, n, rng=None):
         return FourierSample(self._like, self._kern, self._mean,
                              self._X, self._Y, n, rng)
-
-    def condition_xstar(self, xstar):
-        return GP_xstar(self._like, self._kern, self._mean,
-                        self._X, self._Y, xstar)
-
-    def condition_fstar(self, fstar):
-        return GP_fstar(self._like, self._kern, self._mean,
-                        self._X, self._Y, fstar)
 
 
 def make_gp(sn2, rho, ell,
