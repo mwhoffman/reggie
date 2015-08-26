@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import mwhutils.plotting as mp
-import reggie as rg
+
+from reggie import make_gp, MCMC
 
 
 if __name__ == '__main__':
@@ -12,7 +13,7 @@ if __name__ == '__main__':
     Y = data['y']
 
     # create a model
-    gp = rg.make_gp(0.1, 1.0, 0.1)
+    gp = make_gp(0.1, 1.0, 0.1)
 
     # set the hyperpriors
     gp.params['like.sn2'].set_prior('lognormal', 0, 10)
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     gp.optimize()
 
     # sample hyperparameters
-    mcmc = rg.MCMC(gp, n=1000, rng=None)
+    mcmc = MCMC(gp, n=1000, rng=None)
 
     # evaluate the posterior at some test points
     x = np.linspace(X.min(), X.max(), 500)

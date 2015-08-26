@@ -2,7 +2,7 @@ import os
 import numpy as np
 import mwhutils.plotting as mp
 
-import reggie as rg
+from reggie import make_gp
 
 
 if __name__ == '__main__':
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     U = np.linspace(X.min(), X.max(), 10)[:, None]
 
     # create a basic GP and switch to sparse inference
-    gp = rg.make_gp(0.1, 1.0, 0.1, inference='fitc', U=U)
+    gp = make_gp(0.1, 1.0, 0.1, inf='fitc', U=U)
     gp.add_data(X, Y)
     gp.optimize()
 
