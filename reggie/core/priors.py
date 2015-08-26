@@ -9,9 +9,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.random as random
-import mwhutils.pretty as pretty
 
+from ..utils.misc import rstate, repr_args
 from .domains import EPSILON
 
 __all__ = ['Uniform', 'LogNormal', 'Normal']
@@ -52,12 +51,12 @@ class Uniform(Prior):
             raise ValueError("malformed upper/lower bounds")
 
     def __repr__(self):
-        return pretty.repr_args(self,
-                                self.bounds[:, 0].squeeze(),
-                                self.bounds[:, 1].squeeze())
+        return repr_args(self,
+                         self.bounds[:, 0].squeeze(),
+                         self.bounds[:, 1].squeeze())
 
     def sample(self, size=None, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         a = self.bounds[:, 0]
         b = self.bounds[:, 1] - a
         if size is None:
@@ -83,12 +82,12 @@ class LogNormal(Prior):
         self.ndim = len(self._mu)
 
     def __repr__(self):
-        return pretty.repr_args(self,
-                                self._mu.squeeze(),
-                                self._s2.squeeze())
+        return repr_args(self,
+                         self._mu.squeeze(),
+                         self._s2.squeeze())
 
     def sample(self, size=None, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         m, s = self._mu, np.sqrt(self._s2)
         if size is not None:
             m = np.tile(m, (size, 1))
@@ -123,12 +122,12 @@ class Normal(Prior):
         self.ndim = len(self._mu)
 
     def __repr__(self):
-        return pretty.repr_args(self,
-                                self._mu.squeeze(),
-                                self._s2.squeeze())
+        return repr_args(self,
+                         self._mu.squeeze(),
+                         self._s2.squeeze())
 
     def sample(self, size=None, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         m, s = self._mu, np.sqrt(self._s2)
         if size is not None:
             m = np.tile(m, (size, 1))

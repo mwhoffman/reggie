@@ -70,18 +70,6 @@ class ModelTest(object):
 
 ### PER-INSTANCE TEST CLASSES #################################################
 
-def test_init():
-    like = reggie.likelihoods.Probit()
-    kern = reggie.kernels.SE(1, 1)
-    mean = reggie.functions.Zero()
-    U = np.random.rand(50, 1)
-
-    # make sure the Gaussian-type inference methods raise an exception on
-    # non-Gaussian likelihoods
-    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'exact')
-    nt.assert_raises(ValueError, models.GP, like, kern, mean, 'fitc', U)
-
-
 class TestGP(ModelTest):
     def __init__(self):
         gp = models.make_gp(1, 1, [1., 1.])
@@ -92,13 +80,13 @@ class TestGP(ModelTest):
 class TestGP_FITC(ModelTest):
     def __init__(self):
         U = np.random.rand(50, 2)
-        gp = models.make_gp(0.7, 1, [1., 1.], inference='fitc', U=U)
+        gp = models.make_gp(0.7, 1, [1., 1.], inf='fitc', U=U)
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)
 
 
 class TestGP_Laplace(ModelTest):
     def __init__(self):
-        gp = models.make_gp(0.7, 1, [1., 1.], inference='laplace')
+        gp = models.make_gp(0.7, 1, [1., 1.], inf='laplace')
         gp.add_data(np.random.rand(10, 2), np.random.rand(10))
         ModelTest.__init__(self, gp)

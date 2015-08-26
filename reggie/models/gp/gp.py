@@ -8,118 +8,93 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.stats as ss
-import mwhutils.linalg as la
-import mwhutils.random as random
 
-from .. import likelihoods
-from .. import kernels
-from .. import functions
+from ...utils.misc import rstate
+from ...utils import linalg as la
+from .._core import ParameterizedModel
 
-from ._core import ParameterizedModel
-from . import gpinference
+from .fourier import FourierSample
+
+from ... import likelihoods
+from ... import kernels
+from ... import means
+
+from . import inference
 
 __all__ = ['GP', 'make_gp']
-
-
-class FourierSample(object):
-    """
-    Encapsulation of a continuous function sampled from a Gaussian process
-    where this infinitely-parameterized object is approximated using a weighted
-    sum of finitely many Fourier samples.
-    """
-    def __init__(self, gp, n, rng=None):
-        rng = random.rstate(rng)
-
-        # randomize the feature
-        W, a = gp._post.kern.sample_spectrum(n, rng)
-
-        self._W = W
-        self._b = rng.rand(n) * 2 * np.pi
-        self._a = np.sqrt(2*a/n)
-        self._mean = gp._post.mean.copy()
-        self._theta = None
-
-        if gp.ndata > 0:
-            X, Y = gp.data
-            Z = np.dot(X, self._W.T) + self._b
-            Phi = np.cos(Z) * self._a
-
-            # get the components for regression
-            A = np.dot(Phi.T, Phi)
-            A = la.add_diagonal(A, gp._post.like.get_variance())
-
-            L = la.cholesky(A)
-            r = Y - self._mean.get_function(X)
-            p = np.sqrt(gp._post.like.get_variance()) * rng.randn(n)
-
-            self._theta = la.solve_cholesky(L, np.dot(Phi.T, r))
-            self._theta += la.solve_triangular(L, p, True)
-
-        else:
-            self._theta = rng.randn(n)
-
-    def __call__(self, x, grad=False):
-        if grad:
-            F, G = self.get(x, True)
-            return F[0], G[0]
-        else:
-            return self.get(x)[0]
-
-    def get(self, X, grad=False):
-        X = np.array(X, ndmin=2, copy=False)
-        Z = np.dot(X, self._W.T) + self._b
-
-        F = self._mean.get_function(X)
-        F += np.dot(self._a * np.cos(Z), self._theta)
-
-        if not grad:
-            return F
-
-        d = (-self._a * np.sin(Z))[:, :, None] * self._W[None]
-        G = np.einsum('ijk,j', d, self._theta)
-
-        return F, G
 
 
 class GP(ParameterizedModel):
     """
     Implementation of GP inference.
     """
-    def __init__(self, like, kern, mean, inference, *args, **kwargs):
+    def __init__(self, like, kern, mean, inf='exact', U=None):
         # initialize
         super(GP, self).__init__()
 
-        # create the posterior object
-        args = (like, kern, mean) + args
-        post = gpinference.INFERENCE[inference](*args, **kwargs)
+        # store the component objects
+        self._like = self._register_obj('like', like)
+        self._kern = self._register_obj('kern', kern)
+        self._mean = self._register_obj('mean', mean)
 
-        # store the posterior object and update the parameters
-        self._post = self._register_obj(None, post)
-        self._update()
+        if isinstance(inf, basestring):
+            if inf in inference.__all__:
+                inf = getattr(inference, inf)
+            else:
+                raise ValueError('Unknown inference method')
+
+        # FIXME: there should probably be a check here to see if the inference
+        # method supports inducing points. Also we should check whether the
+        # inference method requires Gaussian likelihoods.
+
+        # store the inference method, the posterior sufficient statistics (None
+        # so far) and any inducing points. inducing points.
+        self._infer = inf
+        self._post = None
+        self._U = U
 
     def __info__(self):
-        info = self._post.__info__()
-        info.insert(3, ('inference', type(self._post).__name__.lower()))
+        info = [
+            ('like', self._like),
+            ('kern', self._kern),
+            ('mean', self._mean)]
+
+        inf = self._infer.__name__
+
+        # append the inference method if it is non-default
+        if inf in inference.__all__:
+            if inf is not 'exact':
+                info.append(('inf', inf))
+        else:
+            info.append(('inf', self._infer))
+
+        # append if we have any inducing points.
+        if self._U is not None:
+            info.append(('U', self._U))
+
         return info
 
     def _update(self):
-        if self.ndata == 0:
-            self._post.init()
+        if self._X is None:
+            self._post = None
         else:
-            self._post.update(self._X, self._Y)
+            args = (self._like, self._kern, self._mean, self._X, self._Y)
+            if self._U is not None:
+                args += (self._U, )
+            self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
         # get the prior mean and variance
-        mu = self._post.mean.get_function(X)
-        s2 = (self._post.kern.get_kernel(X) if joint else
-              self._post.kern.get_dkernel(X))
+        mu = self._mean.get_mean(X)
+        s2 = (self._kern.get_kernel(X) if joint else
+              self._kern.get_dkernel(X))
 
         # if we have data compute the posterior
-        if self.ndata > 0:
-            if hasattr(self._post, 'U'):
-                K = self._post.kern.get_kernel(self._post.U, X)
+        if self._post is not None:
+            if self._U is not None:
+                K = self._kern.get_kernel(self._U, X)
             else:
-                K = self._post.kern.get_kernel(self._X, X)
+                K = self._kern.get_kernel(self._X, X)
 
             # compute the mean and variance
             w = self._post.w.reshape(-1, 1)
@@ -138,16 +113,15 @@ class GP(ParameterizedModel):
         if joint:
             raise ValueError('cannot compute gradients of joint predictions')
 
-        # Get the prior gradients. NOTE: this assumes a stationary kernel.
-        dmu = self._post.mean.get_gradx(X)
-        ds2 = np.zeros_like(X)
+        dmu = self._mean.get_gradx(X)
+        ds2 = self._kern.get_dgradx(X)
 
-        if self.ndata > 0:
+        if self._post is not None:
             # get the kernel gradients
-            if hasattr(self._post, 'U'):
-                dK = self._post.kern.get_gradx(X, self._post.U)
+            if self._U is not None:
+                dK = self._kern.get_gradx(X, self._U)
             else:
-                dK = self._post.kern.get_gradx(X, self._X)
+                dK = self._kern.get_gradx(X, self._X)
 
             # reshape them to make it a 2d-array
             dK = np.rollaxis(dK, 1)
@@ -170,14 +144,14 @@ class GP(ParameterizedModel):
         return mu, s2, dmu, ds2
 
     def get_loglike(self, grad=False):
-        if self.ndata == 0:
+        if self._post is None:
             return (0.0, np.zeros(self.params.size)) if grad else 0.0
         else:
             return (self._post.lZ, self._post.dlZ) if grad else self._post.lZ
 
     def sample(self, X, size=None, latent=True, rng=None):
         mu, Sigma = self._predict(X, joint=True)
-        rng = random.rstate(rng)
+        rng = rstate(rng)
 
         L = la.cholesky(la.add_diagonal(Sigma, 1e-10))
         m = 1 if (size is None) else size
@@ -185,13 +159,10 @@ class GP(ParameterizedModel):
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
 
         if latent is False:
-            f = self._post.like.sample(f.ravel(), rng).reshape(f.shape)
+            f = self._like.sample(f.ravel(), rng).reshape(f.shape)
         if size is None:
             f = f.ravel()
         return f
-
-    def sample_f(self, n, rng=None):
-        return FourierSample(self, n, rng)
 
     def predict(self, X, grad=False):
         return self._predict(X, grad=grad)
@@ -235,12 +206,35 @@ class GP(ParameterizedModel):
             dei *= (ei - s * z * cdf)[:, None] + cdf[:, None] * dmu
             return ei, dei
 
+    def get_entropy(self, X, grad=False):
+        """
+        Return the marginal predictive entropy.
+        """
+        # compute the differential entropy
+        vals = self.predict(X, grad)
+        s2 = vals[1]
+        sp2 = s2 + self._like.get_variance()
+        H = 0.5 * np.log(2 * np.pi * np.e * sp2)
 
-def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
-            inference='exact', **kwargs):
+        if not grad:
+            return H
+
+        # get the derivative of the entropy
+        ds2 = vals[3]
+        dH = 0.5 * ds2 / sp2[:, None]
+
+        return H, dH
+
+    def sample_f(self, n, rng=None):
+        return FourierSample(self._like, self._kern, self._mean,
+                             self._X, self._Y, n, rng)
+
+
+def make_gp(sn2, rho, ell,
+            mean=0.0, ndim=None, kernel='se', inf='exact', U=None):
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
-    mean = functions.Constant(mean)
+    mean = means.Constant(mean)
 
     # create a kernel object which depends on the string identifier
     kern = (
@@ -253,4 +247,4 @@ def make_gp(sn2, rho, ell, mean=0.0, ndim=None, kernel='se',
     if kernel is None:
         raise ValueError('Unknown kernel type')
 
-    return GP(like, kern, mean, inference, **kwargs)
+    return GP(like, kern, mean, inf, U)

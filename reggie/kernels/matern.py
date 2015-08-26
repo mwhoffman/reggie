@@ -7,11 +7,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.random as random
+
+from ..core.domains import POSITIVE
+from ..utils.misc import rstate
 
 from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
-from ..core.domains import POSITIVE
 
 __all__ = ['Matern']
 
@@ -88,20 +89,24 @@ class Matern(RealKernel):
             yield np.zeros(len(X1))
 
     def get_gradx(self, X1, X2=None):
-        X1, X2 = rescale(self._ell / np.sqrt(self._d), X1, X2)
+        ell = self._ell / np.sqrt(self._d)
+        X1, X2 = rescale(ell, X1, X2)
         D1 = diff(X1, X2)
         D = np.sqrt(np.sum(D1**2, axis=-1))
         S = self._rho * np.exp(-D)
         with np.errstate(invalid='ignore'):
             M = np.where(D < 1e-12, 0, S * self._g(D) / D)
-        G = -M[:, :, None] * D1 / self._ell
+        G = -M[:, :, None] * D1 / ell
         return G
+
+    def get_dgradx(self, X1):
+        return np.zeros_like(X1)
 
     def get_gradxy(self, X1, X2=None):
         raise NotImplementedError
 
     def sample_spectrum(self, N, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         g = np.sqrt(rng.gamma(self._d / 2., 2. / self._d, N))
         W = rng.randn(N, self.ndim) / self._ell / g[:, None]
         a = float(self._rho)

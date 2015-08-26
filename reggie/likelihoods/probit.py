@@ -9,9 +9,9 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.special as ss
-import mwhutils.random as random
 
 from ._core import Likelihood
+from ..utils.misc import rstate
 
 __all__ = ['Probit']
 
@@ -28,7 +28,7 @@ def logphi(z, grad=False):
 
 class Probit(Likelihood):
     def sample(self, f, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         i = np.log(rng.rand(len(f))) < logphi(f)
         y = 1*i - 1*(-i)
         return y

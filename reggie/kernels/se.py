@@ -7,11 +7,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import mwhutils.random as random
+
+from ..core.domains import POSITIVE
+from ..utils.misc import rstate
 
 from ._core import RealKernel
 from ._distances import rescale, dist, dist_foreach, diff
-from ..core.domains import POSITIVE
 
 __all__ = ['SE']
 
@@ -79,6 +80,9 @@ class SE(RealKernel):
         G = -K[:, :, None] * D / self._ell
         return G
 
+    def get_dgradx(self, X1):
+        return np.zeros_like(X1)
+
     def get_gradxy(self, X1, X2=None):
         X1, X2 = rescale(self._ell, X1, X2)
         D = diff(X1, X2)
@@ -89,7 +93,7 @@ class SE(RealKernel):
         return G
 
     def sample_spectrum(self, N, rng=None):
-        rng = random.rstate(rng)
+        rng = rstate(rng)
         W = rng.randn(N, self.ndim) / self._ell
         alpha = float(self._rho)
         return W, alpha

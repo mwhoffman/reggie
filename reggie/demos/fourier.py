@@ -1,20 +1,25 @@
+"""
+Demo showing the approximation of 1d kernels with random Fourier features.
+"""
+
 import numpy as np
 import mwhutils.plotting as mp
-import mwhutils.random as random
-import reggie as rg
+
+from reggie.kernels import SE, Matern
+from reggie.utils.misc import rstate
 
 
 if __name__ == '__main__':
     kernels = [
-        rg.kernels.SE(1, 1),
-        rg.kernels.Matern(1, 1, d=5)]
+        SE(1, 1),
+        Matern(1, 1, d=5)]
 
     # seed the rng
-    rng = random.rstate()
+    rng = rstate()
     x = np.linspace(-5, 5, 500)
     n = 1000
 
-    fig = mp.figure(len(kernels))
+    fig = mp.figure(len(kernels), num=1)
     fig.hold()
 
     # the points we'll test at

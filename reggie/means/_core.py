@@ -10,20 +10,20 @@ import numpy as np
 
 from ..core.params import Parameterized
 
-__all__ = ['Function']
+__all__ = ['Mean']
 
 
 ### BASE KERNEL INTERFACE #####################################################
 
-class Function(Parameterized):
+class Mean(Parameterized):
     """
     The base Function interface.
     """
     def __call__(self, x):
         X = np.array(x, ndmin=1)[None]
-        return self.get_function(X)[0]
+        return self.get_mean(X)[0]
 
-    def get_function(self, X):
+    def get_mean(self, X):
         """
         Evaluate the function at input points X.
         """
