@@ -1,7 +1,2 @@
 /htmlcov/
 /*.egg-info/
-/build/
-/dist/
-/src/
-*.c
-*.so

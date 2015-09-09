@@ -26,5 +26,5 @@ if __name__ == '__main__':
           license='Simplified BSD',
           packages=find_packages(),
           package_data={'': ['*.txt', '*.npz']},
-          install_requires=['numpy', 'scipy'])
+          install_requires=['numpy', 'scipy', 'tabulate', 'nose', 'ezplot'])
 

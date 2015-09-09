@@ -1,0 +1,5 @@
+numpy
+scipy
+tabulate
+nose
+git+https://github.com/mwhoffman/ezplot.git#egg=ezplot
