@@ -4,8 +4,8 @@ Demo showing GP predictions in 1d and optimization of the hyperparameters.
 
 import os
 import numpy as np
-import mwhutils.plotting as mp
 
+from ezplot import figure, show
 from reggie import make_gp
 
 
@@ -26,14 +26,14 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure(num=1)
-    fig.hold()
-    fig.plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
-    fig.scatter(X, Y, 'observed data')
-    fig.xlabel = 'inputs, X'
-    fig.ylabel = 'outputs, Y'
-    fig.title = 'Basic GP'
-    fig.draw()
+    ax = figure().gca()
+    ax.plot_banded(x, mu, 2*np.sqrt(s2), label='posterior mean')
+    ax.scatter(X.ravel(), Y, label='obsered data')
+    ax.legend(loc=0)
+    ax.set_title('Basic GP')
+    ax.set_xlabel('inputs, X')
+    ax.set_ylabel('outputs, Y')
 
-    # show the figure
-    mp.show()
+    # draw/show it
+    ax.figure.canvas.draw()
+    show()

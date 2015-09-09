@@ -1,7 +1,7 @@
 import os
 import numpy as np
-import mwhutils.plotting as mp
 
+from ezplot import figure, show
 from reggie import make_gp
 
 
@@ -23,15 +23,15 @@ if __name__ == '__main__':
     mu, s2 = gp.predict(x[:, None])
 
     # plot the posterior
-    fig = mp.figure()
-    fig.hold()
-    fig.plot(x, mu, 2*np.sqrt(s2), label='posterior mean')
-    fig.scatter(X, Y, label='observed data')
-    fig.scatter(U, np.full_like(U, -1), label='inducing points')
-    fig.xlabel = 'inputs, X'
-    fig.ylabel = 'outputs, Y'
-    fig.title = 'Sparse GP (FITC)'
-    fig.draw()
+    ax = figure().gca()
+    ax.plot_banded(x, mu, 2*np.sqrt(s2), label='posterior mean')
+    ax.scatter(X, Y, label='observed data')
+    ax.scatter(U, np.full_like(U, -1), marker='x', label='inducing points')
+    ax.legend(loc=0)
+    ax.set_xlabel('inputs, X')
+    ax.set_ylabel('outputs, Y')
+    ax.set_title('Sparse GP (FITC)')
 
     # show the figure
-    mp.show()
+    ax.figure.canvas.draw()
+    show()
