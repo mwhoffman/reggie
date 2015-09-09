@@ -14,7 +14,7 @@ import mwhutils.pretty as pretty
 
 from .domains import EPSILON
 
-__all__ = ['Uniform', 'LogNormal', 'Normal']
+__all__ = ['Uniform', 'LogNormal', 'Normal', 'Horseshoe']
 
 
 class Prior(object):
@@ -147,6 +147,33 @@ class Normal(Prior):
         else:
             return logp
 
+class Horseshoe(Prior):
+    """Horseshoe prior where each parameter value is independently distributed
+    with scale parameter scale[i]."""
+
+    bounds = (EPSILON, np.inf)
+
+    def __init__(self, scale=1.):
+        self._scale = np.array(scale, copy=True, ndmin=1)
+        self.ndim = len(self._scale)
+
+    def __repr__(self):
+        return pretty.repr_args(self, self._scale.squeeze())
+
+    def get_logprior(self, theta, grad=False):
+        theta2_inv = (self._scale / theta)**2
+        inner = np.log1p(theta2_inv)
+
+        logp = np.sum(np.log(inner))
+
+        if grad:
+            dlogp = theta2_inv / (1 + theta2_inv)
+            dlogp /= inner
+            dlogp *= -2 / theta
+
+            return logp, dlogp
+        else:
+            return logp
 
 # get a dictionary mapping a string to each prior
 PRIORS = dict()
