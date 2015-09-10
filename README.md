@@ -1,5 +1,4 @@
-reggie
--------
+# reggie
 
 A Python package for Bayesian regression.
 
@@ -8,4 +7,3 @@ for Bayesian regression problems. The predominant focus of this package, for
 the time-being is on Gaussian Process (GP) models, loosely based on Carl
 Rasmussen's `GPML` toolbox in matlab, however the focus has shifted slightly as
 we have tried to generalize some of these methods.
-
