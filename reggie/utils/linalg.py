@@ -9,6 +9,7 @@ from __future__ import print_function
 import numpy as np
 import warnings
 
+from scipy.linalg import eigvalsh
 from scipy.linalg import lapack
 from scipy.linalg import LinAlgError
 from numpy.lib.stride_tricks import as_strided
@@ -32,7 +33,7 @@ def add_diagonal(A, d, copy=True):
     return A
 
 
-def cholesky(A, maxtries=5):
+def cholesky(A, maxtries=16):
     """
     Compute the cholesky of A. If the matrix is singular make `maxtries`
     additional attempts to invert it by adding small amounts to the diagonal
@@ -42,10 +43,11 @@ def cholesky(A, maxtries=5):
     if info == 0:
         return L
     else:
-        d = A.diagonal()
-        if np.any(d <= 0):
-            raise LinAlgError('Matrix has non-positive diagonal elements')
-        j = d.mean() * 1e-6
+        n = A.shape[0]
+        maxeig = eigvalsh(A, eigvals=(n-2, n-1))
+        if np.any(maxeig <= 0):
+            raise LinAlgError('Matrix has non-positive maximum eigenvalue')
+        j = maxeig * 1e-6
         for _ in xrange(maxtries):
             L, info = lapack.dpotrf(add_diagonal(A, j, True), lower=1)
             if info == 0:
@@ -53,7 +55,7 @@ def cholesky(A, maxtries=5):
                 warnings.warn(message.format(str(j)), stacklevel=2)
                 return L
             else:
-                j *= 10
+                j *= 2
         raise LinAlgError('Matrix is not positive definite, even with jitter')
 
 
