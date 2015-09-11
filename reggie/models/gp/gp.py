@@ -32,6 +32,10 @@ class GP(ParameterizedModel):
         # initialize
         super(GP, self).__init__()
 
+        # this is a non-parametric model so we'll need to store the data
+        self._X = None
+        self._Y = None
+
         # store the component objects
         self._like = self._register_obj('like', like)
         self._kern = self._register_obj('kern', kern)
@@ -58,23 +62,38 @@ class GP(ParameterizedModel):
             ('like', self._like),
             ('kern', self._kern),
             ('mean', self._mean)]
-
         inf = self._infer.__name__
-
         # append the inference method if it is non-default
         if inf in inference.__all__:
             if inf is not 'exact':
                 info.append(('inf', inf))
         else:
             info.append(('inf', self._infer))
-
         # append if we have any inducing points.
         if self._U is not None:
             info.append(('U', self._U))
-
         return info
 
+    def __deepcopy__(self, memo):
+        # don't make a copy of the data.
+        memo[id(self._X)] = self._X
+        memo[id(self._Y)] = self._Y
+        return super(GP, self).__deepcopy__(memo)
+
+    def add_data(self, X, Y):
+        X = np.array(X, copy=False, ndmin=2, dtype=float)
+        Y = np.array(Y, copy=False, ndmin=1, dtype=float)
+        if self._X is None:
+            self._X = X.copy()
+            self._Y = Y.copy()
+        else:
+            self._X = np.r_[self._X, X]
+            self._Y = np.r_[self._Y, Y]
+        self._update()
+
     def _update(self):
+        # NOTE: this method is called both after adding data as well as any time
+        # that the parameters change.
         if self._X is None:
             self._post = None
         else:
@@ -84,6 +103,9 @@ class GP(ParameterizedModel):
             self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
+        """
+        Internal method used to make both joint and marginal predictions.
+        """
         # get the prior mean and variance
         mu = self._mean.get_mean(X)
         s2 = (self._kern.get_kernel(X) if joint else
@@ -226,12 +248,18 @@ class GP(ParameterizedModel):
         return H, dH
 
     def sample_f(self, n, rng=None):
+        """
+        Return an object which acts as a function sampled from the posterior.
+        """
         return FourierSample(self._like, self._kern, self._mean,
                              self._X, self._Y, n, rng)
 
 
 def make_gp(sn2, rho, ell,
             mean=0.0, ndim=None, kernel='se', inf='exact', U=None):
+    """
+    Simple interface for creating either an isotropic or ARD GP.
+    """
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
     mean = means.Constant(mean)

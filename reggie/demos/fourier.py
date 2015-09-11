@@ -8,20 +8,18 @@ from ezplot import figure, show
 from reggie.kernels import SE, Matern
 
 
-if __name__ == '__main__':
-    # seed the rng
-    rng = np.random.RandomState()
-
+def main():
+    """Run the demo."""
     # grab some kernels
-    kernels = [
-        SE(1, 1),
-        Matern(1, 1, d=5)]
+    kernels = [SE(1, 1),
+               Matern(1, 1, d=5)]
 
     # the points we'll test at
     x = np.linspace(-5, 5, 500)
     n = 1000
 
-    # create a figure to plot
+    # seed the rng and create a figure
+    rng = np.random.RandomState(0)
     fig = figure()
 
     for i, kernel in enumerate(kernels):
@@ -38,9 +36,14 @@ if __name__ == '__main__':
         ax.plot(x, k1, label='true kernel')
         ax.plot(x, k2, label='feature approximation')
         ax.set_title(kernel.__class__.__name__)
+
         if i == 0:
             ax.legend(loc=0)
 
     # draw everything
     fig.canvas.draw()
     show()
+
+
+if __name__ == '__main__':
+    main()
