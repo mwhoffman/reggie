@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.stats as ss
+import warnings
 
 from ...utils.misc import rstate
 from ...utils import linalg as la
@@ -107,6 +108,11 @@ class GP(ParameterizedModel):
                 VC = la.solve_triangular(self._post.C, K)
                 s2 += np.dot(VC.T, VC) if joint else np.sum(VC**2, axis=0)
 
+        # make sure s2 isn't zero. this is almost equivalent to using a nugget
+        # parameter, but after the fact if the predictive variance is too
+        # small.
+        s2 = np.clip(s2, 1e-100, np.inf)
+
         if not grad:
             return mu, s2
 
@@ -153,7 +159,13 @@ class GP(ParameterizedModel):
         mu, Sigma = self._predict(X, joint=True)
         rng = rstate(rng)
 
-        L = la.cholesky(la.add_diagonal(Sigma, 1e-10))
+        # the covariance here is without noise, so the cholesky code may add to
+        # the diagonal and raise a warning. since we know this may happe, we
+        # can just ignore this.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            L = la.cholesky(Sigma)
+
         m = 1 if (size is None) else size
         n = len(X)
         f = mu[None] + np.dot(rng.normal(size=(m, n)), L.T)
