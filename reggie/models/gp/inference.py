@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.optimize as spop
+import warnings
 
 from collections import namedtuple
 from itertools import izip
@@ -28,8 +29,13 @@ def exact(like, kern, mean, X, Y):
     K = la.add_diagonal(K, like.get_variance())
     r = Y - mean.get_mean(X)
 
-    # the posterior parameterization
-    L = la.cholesky(K)
+    # compute the cholesky but ignore any warnings that may be thrown when
+    # more "noise" is added to the diagonal.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        L = la.cholesky(K)
+
+    # the rest of the posterior parameterization
     a = la.solve_cholesky(L, r)
     w = np.ones_like(a)
 
