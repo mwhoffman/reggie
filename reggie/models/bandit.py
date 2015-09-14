@@ -13,7 +13,7 @@ import scipy.stats as stats
 from ..utils.misc import rstate
 from ._core import Model
 
-__all__ = []
+__all__ = ['BetaBernoulli']
 
 
 class BetaBernoulli(Model):
@@ -95,3 +95,7 @@ class BetaBernoulli(Model):
                 special.digamma(a) * (a-1) -
                 special.digamma(b) * (b-1) +
                 special.digamma(a+b) * (a+b-2))
+
+    def get_quantile(self, q, X=None):
+        a, b = self._get_alphabeta(X)
+        return special.betaincinv(a, b, q)
