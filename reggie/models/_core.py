@@ -30,7 +30,7 @@ class Model(object):
 
     def add_data(self, X, Y):
         """
-        Add input/output data X and Y to the model.
+        Add input/output data `X` and `Y` to the model.
         """
         raise NotImplementedError
 
@@ -42,58 +42,47 @@ class Model(object):
 
     def sample(self, X, size=None, latent=True, rng=None):
         """
-        Return a sample of the model at input locations X.
+        Return a sample of the model at input locations `X`.
 
-        If size is None then return a vector of the function values, otherwise
-        return an (size, n) array where n is the length of X. If latent is True
-        then return samples of the latent function f(x) and otherwise return
-        samples of the outputs Y. Finally, use the random state rng if given.
+        If `size` is not given this will return an n-vector where n is the
+        length of `X`; otherwise it will return an array of shape `(size, n)`.
+        If `latent` is true the samples will be in the latent space, otherwise
+        they will be sampled in the output space.
         """
         raise NotImplementedError
 
-    def predict(self, X, grad=False):
+    def predict(self, X):
         """
-        Return predictions (and possibly their gradients) at inputs X.
-
-        Return a tuple (mu, s2) containing vectors of the predicted mean and
-        variance at input locations X. If grad is True return a 4-tuple whose
-        first two components are the same as above and where the final two
-        components are the derivatives of the mean and variance with respect to
-        the inputs.
+        Return mean and variance predictions `(mu, s2)` at inputs `X`.
         """
         raise NotImplementedError
 
-    def get_tail(self, X, f, grad=False):
+    def get_tail(self, f, X):
         """
-        Compute the probability that latent function exceeds some target `f`.
-
-        Return a vector containing the probability that the latent function
-        f(x) exceeds the given target `v` for each point `X[i]`. If grad is
-        True return the gradients of this function at each input location.
+        Compute the probability that the latent function at inputs `X` exceeds
+        the target value `f`.
         """
         raise NotImplementedError
 
-    def get_improvement(self, X, f, grad=False):
+    def get_improvement(self, f, X):
         """
-        Compute expected improvement over some target `f`.
-
-        Return a vector containing the expected improvement over a given target
-        `f` for each point `X[i]`. If grad is True return the gradients of this
-        function at each input location.
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`.
         """
         raise NotImplementedError
 
-    def get_entropy(self, X, grad=False):
+    def get_entropy(self, X):
         """
-        Compute the predictive entropy evaluated at inputs X.
+        Compute the predictive entropy evaluated at inputs `X`.
         """
         raise NotImplementedError
+
 
 class ParameterizedModel(Parameterized, Model):
     """
     Interface for a model that is also parameterized. This adds additional
-    methods to optimize the log-likelhiood, get gradients of the log-likelihood,
-    as well as copy the model while changing the paraemters.
+    methods to optimize the log-likelhiood, get gradients of the log-
+    likelihood, as well as copy the model while changing the paraemters.
     """
     def copy(self, theta=None, transform=False):
         # pylint: disable=arguments-differ

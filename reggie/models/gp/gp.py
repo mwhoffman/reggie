@@ -93,8 +93,8 @@ class GP(ParameterizedModel):
         self._update()
 
     def _update(self):
-        # NOTE: this method is called both after adding data as well as any time
-        # that the parameters change.
+        # NOTE: this method is called both after adding data as well as any
+        # time that the parameters change.
         if self._X is None:
             self._post = None
         else:
@@ -199,9 +199,21 @@ class GP(ParameterizedModel):
         return f
 
     def predict(self, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Return mean and variance predictions `(mu, s2)` at inputs `X`. If
+        `grad` is true, also compute gradients of these quantities with respect
+        to the inputs.
+        """
         return self._predict(X, grad=grad)
 
-    def get_tail(self, X, f, grad=False):
+    def get_tail(self, f, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`. If `grad` is true, also compute gradients with respect to
+        the inputs.
+        """
         # get the posterior (possibly with gradients) and standardize
         post = self.predict(X, grad=grad)
         mu, s2 = post[:2]
@@ -219,7 +231,13 @@ class GP(ParameterizedModel):
             dcdf = dmu / s[:, None] - 0.5 * ds2 * z[:, None] / s2[:, None]
             return cdf, dcdf
 
-    def get_improvement(self, X, f, grad=False):
+    def get_improvement(self, f, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`. If `grad` is true, also compute gradients with respect to
+        the inputs.
+        """
         # get the posterior (possibly with gradients) and standardize
         post = self.predict(X, grad=grad)
         mu, s2 = post[:2]
@@ -241,10 +259,11 @@ class GP(ParameterizedModel):
             return ei, dei
 
     def get_entropy(self, X, grad=False):
+        # pylint: disable=arguments-differ
         """
-        Return the marginal predictive entropy.
+        Compute the predictive entropy evaluated at inputs `X`. If `grad` is
+        true, also compute gradients quantity with respect to the inputs.
         """
-        # compute the differential entropy
         vals = self.predict(X, grad)
         s2 = vals[1]
         sp2 = s2 + self._like.get_variance()
@@ -261,7 +280,9 @@ class GP(ParameterizedModel):
 
     def sample_f(self, n, rng=None):
         """
-        Return an object which acts as a function sampled from the posterior.
+        Return a function or object `f` implementing `__call__` which can be
+        used as a sample of the latent function. The argument `n` specifies the
+        number of approximate features to use.
         """
         return FourierSample(self._like, self._kern, self._mean,
                              self._X, self._Y, n, rng)
