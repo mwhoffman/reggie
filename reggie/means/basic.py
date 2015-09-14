@@ -58,7 +58,11 @@ class Linear(Mean):
     def __init__(self, bias=0, slopes=0):
         super(Linear, self).__init__()
         self._bias = self._register('bias', bias)
-        self._slopes = self._register('slopes', np.array(slopes, ndmin=1))
+        self._slopes = self._register(
+                'slopes',
+                np.array(slopes, ndmin=1),
+                shape=('d',)
+                )
 
     def __info__(self):
         info = []
@@ -85,9 +89,16 @@ class Quadratic(Mean):
     def __init__(self, bias, centre, widths, ndim=None):
         super(Quadratic, self).__init__()
         self._bias = self._register('bias', bias)
-        self._centre = self._register('centre', np.array(centre, ndmin=1))
-        self._widths = self._register('widths', np.array(widths, ndmin=1))
+        self._centre = self._register(
+                'centre',
+                np.array(centre, ndmin=1),
+                shape=('d',))
+        self._widths = self._register(
+                'widths',
+                np.array(widths, ndmin=1),
+                shape=('d',))
 
+        # FIXME: for now _iso and ndim are ignored
         self._iso = False
         self.ndim = np.size(self._widths)
 
@@ -105,20 +116,19 @@ class Quadratic(Mean):
 
     def get_grad(self, X):
         """Gradient wrt the value of the constant mean."""
-        yield np.ones((1, X.shape[0]))                  # derivative wrt bias
+        yield np.ones(len(X))
 
         X0 = np.array(self._centre, ndmin=2)
-        D = (X - X0) / (self._widths ** 2)
-        yield 2 * D.T                                   # derivative wrt centre
+        D = 2 * (X - X0) / (self._widths ** 2)
+        for Di in D.T:
+            yield Di
 
         X, X0 = rescale(self._widths, X, X0)
         D2 = (X - X0) ** 2
         K = 2 / self._widths
-        if self._iso:
-            yield K * np.sum(D2, axis=1).T              # derivative wrt widths
-        else:
-            G = K * D2
-            yield G.T
+        G = K * D2
+        for Gi in G.T:
+            yield Gi
 
     def get_gradx(self, X):
         """Gradient wrt the inputs X."""
