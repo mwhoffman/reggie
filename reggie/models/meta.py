@@ -35,6 +35,7 @@ class MCMC(Model):
     """
     def __init__(self, model, n=100, burn=100, rng=None):
         self._n = n
+        self._ndata = 0
         self._burn = burn
         self._rng = rstate(rng)
         self._models = self._sample(model.copy(), burn=True)
@@ -51,10 +52,11 @@ class MCMC(Model):
 
     def add_data(self, X, Y):
         # add the data
-        nprev = self.ndata
+        nprev = self._ndata
         model = self._models.pop()
         model.add_data(X, Y)
-        self._models = self._sample(model, burn=(model.ndata > 2*nprev))
+        self._ndata += len(X)
+        self._models = self._sample(model, burn=(self._ndata > 2*nprev))
 
     def get_loglike(self):
         return np.mean([m.get_loglike() for m in self._models])
@@ -85,11 +87,11 @@ class MCMC(Model):
         return mu, s2, dmu, ds2
 
     def get_tail(self, f, X, grad=False):
-        parts = [m.get_tail(X, f, grad) for m in self._models]
+        parts = [m.get_tail(f, X, grad) for m in self._models]
         return _integrate(parts, grad)
 
     def get_improvement(self, f, X, grad=False):
-        parts = [m.get_improvement(X, f, grad) for m in self._models]
+        parts = [m.get_improvement(f, X, grad) for m in self._models]
         return _integrate(parts, grad)
 
     def get_entropy(self, X, grad=False):
