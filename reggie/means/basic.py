@@ -58,11 +58,7 @@ class Linear(Mean):
     def __init__(self, bias=0, slopes=0):
         super(Linear, self).__init__()
         self._bias = self._register('bias', bias)
-        self._slopes = self._register(
-                'slopes',
-                np.array(slopes, ndmin=1),
-                shape=('d',)
-                )
+        self._slopes = self._register('slopes', slopes, shape=('d',))
 
     def __info__(self):
         info = []
@@ -72,12 +68,12 @@ class Linear(Mean):
 
     def get_mean(self, X):
         slopes = self._slopes if (len(self._slopes) == len(X)) else \
-                 np.full(len(X), self._slopes)
+            np.full(len(X), self._slopes)
         return X.dot(slopes) + self._bias
 
     def get_grad(self, X):
         for i in X.shape[1]:
-            yield X[:,i]
+            yield X[:, i]
 
     def get_gradx(self, X):
         slopes = self._slopes if (len(self._slopes) == len(X)) else \
@@ -89,14 +85,8 @@ class Quadratic(Mean):
     def __init__(self, bias, centre, widths, ndim=None):
         super(Quadratic, self).__init__()
         self._bias = self._register('bias', bias)
-        self._centre = self._register(
-                'centre',
-                np.array(centre, ndmin=1),
-                shape=('d',))
-        self._widths = self._register(
-                'widths',
-                np.array(widths, ndmin=1),
-                shape=('d',))
+        self._centre = self._register('centre', centre, shape=('d',))
+        self._widths = self._register('widths', widths, shape=('d',))
 
         # FIXME: for now _iso and ndim are ignored
         self._iso = False
