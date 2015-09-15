@@ -7,7 +7,6 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 
-import numpy as np
 import copy
 
 from ..core.params import Parameterized
@@ -17,149 +16,80 @@ __all__ = ['Model']
 
 
 class Model(object):
-    @property
-    def ndata(self):
+    """
+    Interface for probabilistic models of latent functions. This interface
+    includes the ability to add input/output data, evaluate the log-likelihood
+    of this data, make predictions and sample in both the latent and
+    observed space, evaluate tail probabilities, expectations, and entropy.
+    """
+    def copy(self):
         """
-        The number of observations added to the model."""
-        raise NotImplementedError
-
-    @property
-    def data(self):
+        Copy the model; this is just a convenience wrapper around deepcopy.
         """
-        The observed data (X, Y) stored for the model."""
-        raise NotImplementedError
-
-    def copy(self, reset=False):
-        """
-        Copy the model and optionally reset the result."""
-        obj = copy.deepcopy(self)
-        if reset:
-            obj.reset()
-        return obj
+        return copy.deepcopy(self)
 
     def add_data(self, X, Y):
         """
-        Add input/output data X and Y to the model."""
-        raise NotImplementedError
-
-    def reset(self):
-        """
-        Reset the model to its state before data was added."""
-        raise NotImplementedError
-
-    def predict(self, X, grad=False):
-        """
-        Return predictions (and possibly their gradients) at inputs X.
-
-        Return a tuple (mu, s2) containing vectors of the predicted mean and
-        variance at input locations X. If grad is True return a 4-tuple whose
-        first two components are the same as above and where the final two
-        components are the derivatives of the mean and variance with respect to
-        the inputs.
-        """
-        raise NotImplementedError
-
-    def sample(self, X, size=None, latent=True, rng=None):
-        """
-        Return a sample of the model at input locations X.
-
-        If size is None then return a vector of the function values, otherwise
-        return an (size, n) array where n is the length of X. If latent is True
-        then return samples of the latent function f(x) and otherwise return
-        samples of the outputs Y. Finally, use the random state rng if given.
+        Add input/output data `X` and `Y` to the model.
         """
         raise NotImplementedError
 
     def get_loglike(self):
         """
-        Return the log-likelihood of the observed data."""
-        raise NotImplementedError
-
-    def get_tail(self, X, f, grad=False):
-        """
-        Compute the probability that latent function exceeds some target `f`.
-
-        Return a vector containing the probability that the latent function
-        f(x) exceeds the given target `v` for each point `X[i]`. If grad is
-        True return the gradients of this function at each input location.
+        Return the log-likelihood of the observed data.
         """
         raise NotImplementedError
 
-    def get_improvement(self, X, f, grad=False):
+    def sample(self, X, size=None, latent=True, rng=None):
         """
-        Compute expected improvement over some target `f`.
+        Return a sample of the model at input locations `X`.
 
-        Return a vector containing the expected improvement over a given target
-        `f` for each point `X[i]`. If grad is True return the gradients of this
-        function at each input location.
+        If `size` is not given this will return an n-vector where n is the
+        length of `X`; otherwise it will return an array of shape `(size, n)`.
+        If `latent` is true the samples will be in the latent space, otherwise
+        they will be sampled in the output space.
+        """
+        raise NotImplementedError
+
+    def predict(self, X):
+        """
+        Return mean and variance predictions `(mu, s2)` at inputs `X`.
+        """
+        raise NotImplementedError
+
+    def get_tail(self, f, X):
+        """
+        Compute the probability that the latent function at inputs `X` exceeds
+        the target value `f`.
+        """
+        raise NotImplementedError
+
+    def get_improvement(self, f, X):
+        """
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`.
+        """
+        raise NotImplementedError
+
+    def get_entropy(self, X):
+        """
+        Compute the predictive entropy evaluated at inputs `X`.
         """
         raise NotImplementedError
 
 
-class BasicModel(Model):
-    def __init__(self):
-        super(BasicModel, self).__init__()
-        self._X = None
-        self._Y = None
-
-    def _update(self):
-        """
-        Update any internal model parameters or statistics.
-        """
-        pass
-
-    @property
-    def ndata(self):
-        return 0 if self._X is None else self._X.shape[0]
-
-    @property
-    def data(self):
-        return (self._X, self._Y)
-
-    def reset(self):
-        self._X = None
-        self._Y = None
-        self._update()
-
-    def add_data(self, X, Y):
-        X = np.array(X, copy=False, ndmin=2, dtype=float)
-        Y = np.array(Y, copy=False, ndmin=1, dtype=float)
-        if self._X is None:
-            self._X = X.copy()
-            self._Y = Y.copy()
-        else:
-            self._X = np.r_[self._X, X]
-            self._Y = np.r_[self._Y, Y]
-        self._update()
-
-
-class ParameterizedModel(Parameterized, BasicModel):
-    def __deepcopy__(self, memo):
-        # don't make a copy of the data.
-        memo[id(self._X)] = self._X
-        memo[id(self._Y)] = self._Y
-        return super(ParameterizedModel, self).__deepcopy__(memo)
-
-    def copy(self, theta=None, transform=False, reset=False):
+class ParameterizedModel(Parameterized, Model):
+    """
+    Interface for a model that is also parameterized. This adds additional
+    methods to optimize the log-likelhiood, get gradients of the log-
+    likelihood, as well as copy the model while changing the paraemters.
+    """
+    def copy(self, theta=None, transform=False):
         # pylint: disable=arguments-differ
         """
-        Return a copy of the model.
-
-        If theta/transform are given this will modify the parameters of the
-        copy; if reset is True this will reset the resulting model.
-        """
-        # NOTE: this will call the version of copy defined by Parameterized and
-        # not Model's, hence we can pass theta/transform and we need to add in
-        # the reset logic again.
-        obj = super(ParameterizedModel, self).copy(theta, transform)
-        if reset:
-            obj.reset()
-        return obj
-
-    def optimize(self):
-        """
-        Set the model parameters to their MAP values."""
-        self.params.set_value(optimize(self, raw=True), transform=True)
+        Return a copy of the model; optionally changing the parameters."""
+        # NOTE: this will call the version of copy defined by Parameterized.
+        return super(ParameterizedModel, self).copy(theta, transform)
 
     def get_loglike(self, grad=False):
         # pylint: disable=arguments-differ
@@ -168,3 +98,9 @@ class ParameterizedModel(Parameterized, BasicModel):
         of the log-likelihood with respect to the model hyperparameters.
         """
         raise NotImplementedError
+
+    def optimize(self):
+        """
+        Set the model parameters to their MAP values.
+        """
+        self.params.set_value(optimize(self, raw=True), transform=True)

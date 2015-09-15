@@ -33,6 +33,10 @@ class GP(ParameterizedModel):
         # initialize
         super(GP, self).__init__()
 
+        # this is a non-parametric model so we'll need to store the data
+        self._X = None
+        self._Y = None
+
         # store the component objects
         self._like = self._register_obj('like', like)
         self._kern = self._register_obj('kern', kern)
@@ -59,23 +63,38 @@ class GP(ParameterizedModel):
             ('like', self._like),
             ('kern', self._kern),
             ('mean', self._mean)]
-
         inf = self._infer.__name__
-
         # append the inference method if it is non-default
         if inf in inference.__all__:
             if inf is not 'exact':
                 info.append(('inf', inf))
         else:
             info.append(('inf', self._infer))
-
         # append if we have any inducing points.
         if self._U is not None:
             info.append(('U', self._U))
-
         return info
 
+    def __deepcopy__(self, memo):
+        # don't make a copy of the data.
+        memo[id(self._X)] = self._X
+        memo[id(self._Y)] = self._Y
+        return super(GP, self).__deepcopy__(memo)
+
+    def add_data(self, X, Y):
+        X = np.array(X, copy=False, ndmin=2, dtype=float)
+        Y = np.array(Y, copy=False, ndmin=1, dtype=float)
+        if self._X is None:
+            self._X = X.copy()
+            self._Y = Y.copy()
+        else:
+            self._X = np.r_[self._X, X]
+            self._Y = np.r_[self._Y, Y]
+        self._update()
+
     def _update(self):
+        # NOTE: this method is called both after adding data as well as any
+        # time that the parameters change.
         if self._X is None:
             self._post = None
         else:
@@ -85,6 +104,9 @@ class GP(ParameterizedModel):
             self._post = self._infer(*args)
 
     def _predict(self, X, joint=False, grad=False):
+        """
+        Internal method used to make both joint and marginal predictions.
+        """
         # get the prior mean and variance
         mu = self._mean.get_mean(X)
         s2 = (self._kern.get_kernel(X) if joint else
@@ -111,7 +133,7 @@ class GP(ParameterizedModel):
         # make sure s2 isn't zero. this is almost equivalent to using a nugget
         # parameter, but after the fact if the predictive variance is too
         # small.
-        s2 = np.clip(s2, 1e-100, np.inf)
+        # s2 = np.clip(s2, 1e-100, np.inf)
 
         if not grad:
             return mu, s2
@@ -177,9 +199,21 @@ class GP(ParameterizedModel):
         return f
 
     def predict(self, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Return mean and variance predictions `(mu, s2)` at inputs `X`. If
+        `grad` is true, also compute gradients of these quantities with respect
+        to the inputs.
+        """
         return self._predict(X, grad=grad)
 
-    def get_tail(self, X, f, grad=False):
+    def get_tail(self, f, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`. If `grad` is true, also compute gradients with respect to
+        the inputs.
+        """
         # get the posterior (possibly with gradients) and standardize
         post = self.predict(X, grad=grad)
         mu, s2 = post[:2]
@@ -197,7 +231,13 @@ class GP(ParameterizedModel):
             dcdf = dmu / s[:, None] - 0.5 * ds2 * z[:, None] / s2[:, None]
             return cdf, dcdf
 
-    def get_improvement(self, X, f, grad=False):
+    def get_improvement(self, f, X, grad=False):
+        # pylint: disable=arguments-differ
+        """
+        Compute the expected improvement in value at inputs `X` over the target
+        value `f`. If `grad` is true, also compute gradients with respect to
+        the inputs.
+        """
         # get the posterior (possibly with gradients) and standardize
         post = self.predict(X, grad=grad)
         mu, s2 = post[:2]
@@ -219,10 +259,11 @@ class GP(ParameterizedModel):
             return ei, dei
 
     def get_entropy(self, X, grad=False):
+        # pylint: disable=arguments-differ
         """
-        Return the marginal predictive entropy.
+        Compute the predictive entropy evaluated at inputs `X`. If `grad` is
+        true, also compute gradients quantity with respect to the inputs.
         """
-        # compute the differential entropy
         vals = self.predict(X, grad)
         s2 = vals[1]
         sp2 = s2 + self._like.get_variance()
@@ -238,12 +279,20 @@ class GP(ParameterizedModel):
         return H, dH
 
     def sample_f(self, n, rng=None):
+        """
+        Return a function or object `f` implementing `__call__` which can be
+        used as a sample of the latent function. The argument `n` specifies the
+        number of approximate features to use.
+        """
         return FourierSample(self._like, self._kern, self._mean,
                              self._X, self._Y, n, rng)
 
 
 def make_gp(sn2, rho, ell,
             mean=0.0, ndim=None, kernel='se', inf='exact', U=None):
+    """
+    Simple interface for creating either an isotropic or ARD GP.
+    """
     # create the mean/likelihood objects
     like = likelihoods.Gaussian(sn2)
     mean = means.Constant(mean)

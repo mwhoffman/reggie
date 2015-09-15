@@ -35,18 +35,13 @@ class MCMC(Model):
     """
     def __init__(self, model, n=100, burn=100, rng=None):
         self._n = n
+        self._ndata = 0
         self._burn = burn
         self._rng = rstate(rng)
         self._models = self._sample(model.copy(), burn=True)
 
     def __iter__(self):
         return iter(self._models)
-
-    @property
-    def samples(self):
-        """
-        An array of the parameter values produced by MCMC."""
-        return np.array(list(m.params.get_value() for m in self._models))
 
     def _sample(self, model, burn=False):
         """
@@ -55,28 +50,26 @@ class MCMC(Model):
             model = sample(model, self._burn, False, self._rng)[-1]
         return sample(model, self._n, False, self._rng)
 
-    @property
-    def ndata(self):
-        return self._models[-1].ndata
-
-    @property
-    def data(self):
-        return self._models[-1].data
-
-    def reset(self):
-        model = self._models.pop()
-        model.reset()
-        self._models = self._sample(model, burn=True)
-
     def add_data(self, X, Y):
         # add the data
-        nprev = self.ndata
+        nprev = self._ndata
         model = self._models.pop()
         model.add_data(X, Y)
-        self._models = self._sample(model, burn=(model.ndata > 2*nprev))
+        self._ndata += len(X)
+        self._models = self._sample(model, burn=(self._ndata > 2*nprev))
+
+    def get_loglike(self):
+        return np.mean([m.get_loglike() for m in self._models])
+
+    def sample(self, X, size=None, latent=True, rng=None):
+        rng = rstate(rng)
+        model = self._models[rng.randint(self._n)]
+        return model.sample(X, size, latent, rng)
 
     def predict(self, X, grad=False):
-        parts = map(np.array, zip(*[_.predict(X, grad) for _ in self._models]))
+        # pylint: disable=arguments-differ
+        parts = [np.array(a)
+                 for a in zip(*[_.predict(X, grad) for _ in self._models])]
         mu_, s2_ = parts[:2]
         mu = np.mean(mu_, axis=0)
         s2 = np.mean(s2_ + (mu_ - mu)**2, axis=0)
@@ -87,33 +80,25 @@ class MCMC(Model):
         dmu_, ds2_ = parts[2:]
         dmu = np.mean(dmu_, axis=0)
         Dmu = dmu_ - dmu
-        ds2 = np.mean(ds2_
-                      + 2 * mu_[:, :, None] * Dmu
-                      - 2 * mu[None, :, None] * Dmu, axis=0)
+        ds2 = np.mean(ds2_ +
+                      2*mu_[:, :, None] * Dmu -
+                      2*mu[None, :, None] * Dmu, axis=0)
 
         return mu, s2, dmu, ds2
 
-    def sample(self, X, size=None, latent=True, rng=None):
-        rng = rstate(rng)
-        model = self._models[rng.randint(self._n)]
-        return model.sample(X, size, latent, rng)
-
-    def sample_f(self, n, rng=None):
-        rng = rstate(rng)
-        model = self._models[rng.randint(self._n)]
-        return model.sample_f(n, rng)
-
-    def get_loglike(self):
-        return np.mean([m.get_loglike() for m in self._models])
-
-    def get_tail(self, X, f, grad=False):
-        parts = [m.get_tail(X, f, grad) for m in self._models]
+    def get_tail(self, f, X, grad=False):
+        parts = [m.get_tail(f, X, grad) for m in self._models]
         return _integrate(parts, grad)
 
-    def get_improvement(self, X, f, grad=False):
-        parts = [m.get_improvement(X, f, grad) for m in self._models]
+    def get_improvement(self, f, X, grad=False):
+        parts = [m.get_improvement(f, X, grad) for m in self._models]
         return _integrate(parts, grad)
 
     def get_entropy(self, X, grad=False):
         parts = [m.get_entropy(X, grad) for m in self._models]
         return _integrate(parts, grad)
+
+    def sample_f(self, n, rng=None):
+        rng = rstate(rng)
+        model = self._models[rng.randint(self._n)]
+        return model.sample_f(n, rng)

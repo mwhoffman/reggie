@@ -2,22 +2,22 @@
 Demo showing GP predictions in 1d and optimization of the hyperparameters.
 """
 
-import os
 import numpy as np
 
 from ezplot import figure, show
 from reggie import make_gp
 
 
-if __name__ == '__main__':
-    cdir = os.path.abspath(os.path.dirname(__file__))
-    data = np.load(os.path.join(cdir, 'xy.npz'))
+def main():
+    """Run the demo."""
+    # generate random data from a gp prior
+    rng = np.random.RandomState(0)
+    gp = make_gp(0.1, 1.0, 0.1, kernel='matern1')
+    X = rng.uniform(-2, 2, size=(20, 1))
+    Y = gp.sample(X, latent=False, rng=rng)
 
-    X = data['X']
-    Y = data['y']
-
-    # create the GP and optimize the model
-    gp = make_gp(0.1, 1.0, 0.1, kernel='se')
+    # create a new GP and optimize its hyperparameters
+    gp = make_gp(1, 1, 1, kernel='se')
     gp.add_data(X, Y)
     gp.optimize()
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     # plot the posterior
     ax = figure().gca()
     ax.plot_banded(x, mu, 2*np.sqrt(s2), label='posterior mean')
-    ax.scatter(X.ravel(), Y, label='obsered data')
+    ax.scatter(X.ravel(), Y, label='observed data')
     ax.legend(loc=0)
     ax.set_title('Basic GP')
     ax.set_xlabel('inputs, X')
@@ -37,3 +37,7 @@ if __name__ == '__main__':
     # draw/show it
     ax.figure.canvas.draw()
     show()
+
+
+if __name__ == '__main__':
+    main()

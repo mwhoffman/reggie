@@ -1,20 +1,24 @@
-import os
+"""
+Demo showing GP predictions with a sparse approximation (FITC).
+"""
+
 import numpy as np
 
 from ezplot import figure, show
 from reggie import make_gp
 
 
-if __name__ == '__main__':
-    cdir = os.path.abspath(os.path.dirname(__file__))
-    data = np.load(os.path.join(cdir, 'xy.npz'))
-
-    X = data['X']
-    Y = data['y']
+def main():
+    """Run the demo."""
+    # generate random data from a gp prior
+    rng = np.random.RandomState(0)
+    gp = make_gp(0.1, 1.0, 0.1, kernel='matern1')
+    X = rng.uniform(-2, 2, size=(20, 1))
+    Y = gp.sample(X, latent=False, rng=rng)
     U = np.linspace(X.min(), X.max(), 10)[:, None]
 
-    # create a basic GP and switch to sparse inference
-    gp = make_gp(0.1, 1.0, 0.1, inf='fitc', U=U)
+    # create a new (sparse) GP and optimize its hyperparameters
+    gp = make_gp(1, 1, 1, inf='fitc', U=U)
     gp.add_data(X, Y)
     gp.optimize()
 
@@ -35,3 +39,7 @@ if __name__ == '__main__':
     # show the figure
     ax.figure.canvas.draw()
     show()
+
+
+if __name__ == '__main__':
+    main()

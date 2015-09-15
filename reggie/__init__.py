@@ -14,4 +14,3 @@ from . import means, kernels, likelihoods
 __all__ = []
 __all__ += models.__all__
 __all__ += learning.__all__
-
