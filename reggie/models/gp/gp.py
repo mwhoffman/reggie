@@ -133,7 +133,7 @@ class GP(ParameterizedModel):
         # make sure s2 isn't zero. this is almost equivalent to using a nugget
         # parameter, but after the fact if the predictive variance is too
         # small.
-        s2 = np.clip(s2, 1e-100, np.inf)
+        # s2 = np.clip(s2, 1e-100, np.inf)
 
         if not grad:
             return mu, s2
