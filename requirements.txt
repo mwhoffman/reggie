@@ -1,5 +1,10 @@
+# general requirements
 numpy
 scipy
 tabulate
-nose
+
+# reggie requirements
 git+https://github.com/mwhoffman/ezplot.git#egg=ezplot
+
+# reggie
+.
