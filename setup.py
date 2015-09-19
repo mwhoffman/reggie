@@ -30,7 +30,7 @@ def main():
         license='Simplified BSD',
         packages=setuptools.find_packages(),
         package_data={'': ['*.txt', '*.npz']},
-        install_requires=['numpy', 'scipy', 'tabulate', 'nose', 'ezplot'])
+        install_requires=['numpy', 'scipy', 'tabulate', 'ezplot'])
 
 
 if __name__ == '__main__':
