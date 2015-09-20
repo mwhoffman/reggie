@@ -22,7 +22,7 @@ we have tried to generalize some of these methods.
 The easiest way to install this package is by running
 
     pip install -r https://github.com/mwhoffman/reggie/raw/master/requirements.txt
-    pip install git+https://github.com/mwhoffman/pybo.git
+    pip install git+https://github.com/mwhoffman/reggie.git
 
 which will install the package and any of its dependencies. Once the package is
 installed the included demos can be run directly via python. For example, by
