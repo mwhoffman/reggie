@@ -24,3 +24,8 @@ script:
 
 after_success:
     - "coveralls"
+
+notifications:
+    email: false
+    slack:
+        secure: "PE/cdA8PbMFi2sKi9ORj9qhcfaZEZl2hVaAyFlcasz/3ysdcarEcN75qjTdlgTiIauz3GoktID+CJ7h+PprO7hkHLcrOER/NwYJ4LhWwz7vxBMRIYNQDWo2VIVXM6OqSGnPH51pefKM2PoooECr1RulQsLiMscmrbdwHmKtpOUKbxh0ilNgKRtsDPyHoWkZMEe/fmcEs2+od4tAop5fVzdIVWa2SNTPlEFCG2l2RIjAmn7pZn6jD15eMdE9BC3PwQiEu4Ezd1LWvRpYra09udo39wWQE4CG3Ya+RNEa3Ne+yj3eUNMTUU2SO1b3XMCVIbE+w8598SY0U2CEGb/NByMSYMwjGVkBSiZxH3+eeJNcPKchoO/7MYSfcDLRpk6FzlX+MD4EG+BY/PigfOmf6VprD/1PpSLl1ht/H3pik2K5qxDX1p3TmW9WJgnRENHNeoh9ITVbwkmWGnzzAcssxw7rQ1lmZ63FBP/Kwycsig0+bR1LqpLlUcrZ2lieLz6NVswEEVyqP7vF6cSNrrFkzhUCNvuSFyucYbJUk2COTssPSzqJuZRzKa2OJDNLVfMx/KIJaryabnRdwiv9IqRsdjJNjhRnTTdtKtfX7feF2HD+NQRdE+T+Qpa2CSCJHix3fXxO626Qv7NcHgh8uXwr9QcJwBM3aFuz0JaMzfyENQM4="
