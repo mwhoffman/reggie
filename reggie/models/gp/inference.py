@@ -11,7 +11,8 @@ import scipy.optimize as spop
 import warnings
 
 from collections import namedtuple
-from itertools import izip
+# py3 compatibility:
+izip = zip
 
 from ...utils import linalg as la
 

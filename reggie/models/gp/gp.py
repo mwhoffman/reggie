@@ -42,7 +42,7 @@ class GP(ParameterizedModel):
         self._kern = self._register_obj('kern', kern)
         self._mean = self._register_obj('mean', mean)
 
-        if isinstance(inf, basestring):
+        if isinstance(inf, str):
             if inf in inference.__all__:
                 inf = getattr(inference, inf)
             else:

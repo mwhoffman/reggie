@@ -9,7 +9,8 @@ from __future__ import print_function
 import scipy.spatial.distance as ssd
 
 __all__ = ['rescale', 'diff', 'dist', 'dist_foreach']
-
+# py3 compatibility.
+xrange = range
 
 def rescale(ell, X1, X2=None):
     """

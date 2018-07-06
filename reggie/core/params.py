@@ -307,7 +307,8 @@ class Parameters(object):
         if len(self.__params) > 1:
             raise RuntimeError('priors cannot be set for more than one '
                                'parameter at a time')
-        self.__params.values()[0].set_prior(prior, *args, **kwargs)
+        # Add list to odict_values for python 3 compatibility.
+        list(self.__params.values())[0].set_prior(prior, *args, **kwargs)
         # pylint: disable=protected-access
         self.__obj._update()
 

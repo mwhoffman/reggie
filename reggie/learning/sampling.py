@@ -12,6 +12,8 @@ from ..utils.misc import rstate
 
 __all__ = ['sample']
 
+# py3 compatibility.
+xrange = range
 
 def slice_sample(model, sigma=1.0, max_steps=1000, rng=None):
     """
